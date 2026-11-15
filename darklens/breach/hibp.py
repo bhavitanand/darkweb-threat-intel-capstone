@@ -60,3 +60,8 @@ def credential_exposure(text: str, watch_domains: list[str]) -> list[dict]:
             hits.append({"email": email.lower(), "password_masked": pw[0] + "*" * (len(pw) - 1),
                          "password_sha1_prefix": sha1_upper(pw)[:5], "length": len(pw)})
     return hits
+
+
+def mask_combolist(text: str) -> str:
+    """Mask the password half of every email:password pair so plaintext passwords are never stored."""
+    return RE_COMBO.sub(lambda m: f"{m.group(1)}:{m.group(2)[0]}{'*' * (len(m.group(2)) - 1)}", text or "")

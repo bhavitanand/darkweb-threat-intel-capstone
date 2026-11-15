@@ -1,0 +1,4 @@
+# Hosts the crawler may contact. Empty by default on purpose: add only PUBLIC, legal pages
+# (e.g. a public threat-research mirror or a leak-site tracker you are permitted to read),
+# after your faculty guide or supervisor has agreed. Anything not listed here is refused.
+hosts: []

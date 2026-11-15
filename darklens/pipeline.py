@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from .breach.hibp import credential_exposure
+from .breach.hibp import credential_exposure, mask_combolist
 from .collectors import forums, ransomware_live, threatfox
 from .extract.iocs import extract_iocs
 from .models import Item, Signal, now_iso
@@ -93,6 +93,7 @@ def run(offline: bool = True, con=None, items: list[Item] | None = None) -> dict
     n_alerts = 0
     for it in items:
         a = analyse(it, wdom, wmail, clf)
+        it.text = mask_combolist(it.text)  # never persist plaintext passwords
         db.upsert_item(con, it)
         db.add_iocs(con, it.id, a.iocs)
         if a.score > 0:
