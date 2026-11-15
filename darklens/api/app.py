@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 from collections import Counter
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
@@ -21,6 +23,14 @@ from ..store import db
 DASH = Path(__file__).resolve().parents[2] / "dashboard" / "index.html"
 app = FastAPI(title="DarkLens", version=__version__)
 _lock = threading.Lock()
+
+# CORS: the React frontend is served from a different origin (Vercel). Comma-separated exact origins in
+# ALLOWED_ORIGINS (for example https://darklens.vercel.app). Unset means same-origin only, which is what the
+# built-in dashboard and local development (Vite proxies /api) need.
+_ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _ORIGINS:
+    app.add_middleware(CORSMiddleware, allow_origins=_ORIGINS, allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
+                       allow_headers=["Content-Type"], max_age=600)
 
 
 def con():
@@ -71,8 +81,9 @@ def home():
     return FileResponse(DASH)
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health():
+    """HEAD is allowed too, because uptime monitors (UptimeRobot) probe with HEAD and would otherwise see a 405."""
     return {"ok": True, "version": __version__}
 
 
