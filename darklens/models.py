@@ -43,6 +43,7 @@ class Signal:
     score: int          # 0-100 strength of this single signal
     why: str            # plain-English reason
     evidence: str = ""  # the matched text / value, truncated
+    full: bool = False  # True = counts at full strength (watchlist hits are about "us")
 
     def to_dict(self) -> dict:
         return asdict(self)

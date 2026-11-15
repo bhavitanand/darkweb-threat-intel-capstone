@@ -1,0 +1,50 @@
+[
+ {
+  "source": "forum:demo",
+  "author": "vendor_a1",
+  "title": "Initial access: VPN foothold, telecom",
+  "text": "Selling initial access to a telecom company, domain admin on the VPN, revenue 300M, price 0.4 BTC, escrow accepted. Payment wallet 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2."
+ },
+ {
+  "source": "forum:demo",
+  "author": "vendor_b2",
+  "title": "Fresh DB dump granite-bank.example",
+  "text": "Database dump of granite-bank.example, 1.2 million rows, emails and bcrypt hashes, fresh breach, sample below: alice@granite-bank.example:Winter2026! bob@granite-bank.example:Passw0rd1 carol@granite-bank.example:Qwerty123"
+ },
+ {
+  "source": "forum:demo",
+  "author": "kit_seller",
+  "title": "Office365 phishing kit",
+  "text": "Office365 phishing kit with admin panel, anti-bot and cloaking, 2FA relay supported, updated weekly, $250. Contact via jabber."
+ },
+ {
+  "source": "forum:demo",
+  "author": "vendor_a1",
+  "title": "RDP access batch",
+  "text": "More initial access listings: Citrix and RDP access, healthcare and logistics. Payment wallet 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 or XMR on request."
+ },
+ {
+  "source": "forum:demo",
+  "author": "coder77",
+  "title": "Setting up a home lab",
+  "text": "Tutorial: setting up a home lab with virtual machines to practice defensive security, includes free tools list."
+ },
+ {
+  "source": "telegram:demo",
+  "author": "opdemo",
+  "title": "Operation announcement",
+  "text": "Our collective will attack government sites with a ddos campaign next week. Join the channel for tools."
+ },
+ {
+  "source": "forum:demo",
+  "author": "exp_dealer",
+  "title": "0day RCE for Fortinet VPN",
+  "text": "Selling 0day RCE for Fortinet VPN appliance, CVE-2026-5555 weaponized, working poc, price 2 XMR, escrow ok. Wallet 0x52908400098527886E0F7030069857D2E4169EE7."
+ },
+ {
+  "source": "forum:demo",
+  "author": "stealer_guy",
+  "title": "Daily stealer logs",
+  "text": "Fresh Redline and Lumma stealer logs, cookies and saved passwords, 90k lines, VPN logins for corporate accounts included, $80 per day cloud."
+ }
+]

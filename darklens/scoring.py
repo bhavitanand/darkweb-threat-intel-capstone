@@ -25,6 +25,9 @@ def severity(score: int) -> str:
     return "low"
 
 
+GENERIC_DISCOUNT = 0.55  # generic content signals are discounted so only strong, converging evidence reaches critical
+
+
 def combine(signals: list[Signal]) -> tuple[int, str]:
-    score = noisy_or([s.score for s in signals])
+    score = noisy_or([s.score if s.full else round(s.score * GENERIC_DISCOUNT) for s in signals])
     return score, severity(score)

@@ -7,7 +7,7 @@
   name: Leak countdown
   weight: 70
   why: Extortion sites publish a deadline before releasing stolen data.
-  patterns: ['\b(data|files?) will be (published|released|leaked)\b', '\bcountdown\b', '\bdeadline\b.{0,40}\b(days?|hours?)\b', '\btime left\b']
+  patterns: ['\b(data|files?) will be (published|released|leaked)\b', '\bcountdown\b', '\bdeadline\b.{0,40}\b(days?|hours?)\b', '\btime left\b', '\bpublication in \d+ (days?|hours?)\b', '\bleak scheduled\b']
 - id: DL-RAN-002
   category: ransomware_leak
   name: Victim claim with data volume

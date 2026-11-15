@@ -1,0 +1,34 @@
+[
+ {
+  "ioc": "185.220.101.45:443",
+  "ioc_type": "ip:port",
+  "threat_type": "botnet_cc",
+  "malware": "ExampleRAT",
+  "confidence_level": 90,
+  "first_seen": "2026-11-14 09:12:00"
+ },
+ {
+  "ioc": "http://update-check[.]example-bad[.]xyz/gate.php",
+  "ioc_type": "url",
+  "threat_type": "payload_delivery",
+  "malware": "DemoLoader",
+  "confidence_level": 75,
+  "first_seen": "2026-11-14 12:40:00"
+ },
+ {
+  "ioc": "44d88612fea8a8f36de82e1278abb02f",
+  "ioc_type": "md5_hash",
+  "threat_type": "payload",
+  "malware": "ExampleRAT",
+  "confidence_level": 100,
+  "first_seen": "2026-11-13 18:03:00"
+ },
+ {
+  "ioc": "198.51.100.77:8080",
+  "ioc_type": "ip:port",
+  "threat_type": "botnet_cc",
+  "malware": "DemoLoader",
+  "confidence_level": 60,
+  "first_seen": "2026-11-15 01:25:00"
+ }
+]

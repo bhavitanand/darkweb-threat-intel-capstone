@@ -1,0 +1,37 @@
+[
+ {
+  "victim": "Northwind Logistics (demo)",
+  "group": "ExampleLocker",
+  "attackdate": "2026-11-10",
+  "country": "IN",
+  "description": "Claimed 340 GB of finance and HR documents. Data will be published in 4 days unless contacted. Negotiation chat open."
+ },
+ {
+  "victim": "Bluepeak Hospital (demo)",
+  "group": "ExampleLocker",
+  "attackdate": "2026-11-12",
+  "country": "US",
+  "description": "Network encrypted and data stolen. Countdown started, 1.2 TB exfiltrated. Pay the ransom to receive decryption."
+ },
+ {
+  "victim": "Granite Bank (demo)",
+  "group": "DemoCrypt",
+  "attackdate": "2026-11-13",
+  "country": "DE",
+  "description": "Double extortion notice: encrypted and exfiltrated 90 GB. Deadline 6 days."
+ },
+ {
+  "victim": "Cedar Municipal Council (demo)",
+  "group": "DemoCrypt",
+  "attackdate": "2026-11-14",
+  "country": "GB",
+  "description": "Citizen records stolen, 60 GB. Leak scheduled. Contact our chat to negotiate."
+ },
+ {
+  "victim": "Maple Retail (demo)",
+  "group": "SampleLock",
+  "attackdate": "2026-11-14",
+  "country": "CA",
+  "description": "Customer database and payroll files taken, 210 GB, publication in 2 days."
+ }
+]
