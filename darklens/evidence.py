@@ -20,6 +20,7 @@ def build_pack(alert: dict) -> tuple[str, str]:
     )
     iocs = "".join(f"<li><b>{html.escape(t)}</b>: <code>{html.escape(v)}</code></li>"
                    for t, vs in (alert.get("iocs") or {}).items() for v in vs)
+    mitre = "".join(f"<li>{html.escape(t['id'])} {html.escape(t['name'])}</li>" for t in alert.get("mitre", []))
     page = f"""<!doctype html><meta charset=utf-8><title>DarkLens evidence pack</title>
 <style>body{{font:15px system-ui;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1a1a1a}}
 table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ccc;padding:6px;text-align:left;vertical-align:top}}
@@ -32,6 +33,11 @@ table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ccc;padding
 <h3>Why this scored {alert.get('score')}</h3>
 <table><tr><th>Signal</th><th>Strength</th><th>Why</th><th>Evidence</th></tr>{rows}</table>
 <h3>Indicators</h3><ul>{iocs or '<li>none</li>'}</ul>
+<h3>Observed vs inferred</h3>
+<ul><li><b>Observed:</b> the text snippet and the indicators extracted from it.</li>
+<li><b>Inferred:</b> the category, the score and any ATT&amp;CK mapping below.</li>
+<li><b>Not checked:</b> whether the claim is true, whether the named organisation was really affected, and whether any listed wallet or host is still active. Unknown is never the same as safe.</li></ul>
+<h3>MITRE ATT&amp;CK</h3><ul>{mitre or '<li>none</li>'}</ul>
 <h3>Method</h3><p>{html.escape(METHOD)}</p>
 <h3>Integrity</h3><p>SHA-256 of alert data: <code>{digest}</code></p>"""
     return page, digest

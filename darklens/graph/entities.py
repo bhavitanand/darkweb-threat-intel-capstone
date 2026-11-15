@@ -47,3 +47,32 @@ def to_json(g: nx.Graph) -> dict:
     nodes = [{"id": n, **d} for n, d in g.nodes(data=True)]
     links = [{"source": a, "target": b, **d} for a, b, d in g.edges(data=True)]
     return {"nodes": nodes, "links": links}
+
+
+def campaigns(g: nx.Graph) -> list[dict]:
+    """Group alerts that are connected through shared indicators (wallets, IPs, hashes, emails).
+
+    Actor and organisation nodes are ignored on purpose: two posts by the same handle are not a campaign,
+    but two handles sharing a wallet is. Risk spreads with Personalized PageRank seeded on high-scoring items.
+    """
+    h = nx.Graph()
+    for a, b, d in g.edges(data=True):
+        if d.get("rel") in LINK_TYPES:
+            h.add_edge(a, b)
+    items = [n for n in g.nodes if g.nodes[n].get("kind") == "item"]
+    seed = {n: g.nodes[n].get("score", 0) + 1 for n in items if n in h}
+    ppr = nx.pagerank(h, personalization=seed) if seed else {}
+    top = max(ppr.values(), default=1) or 1
+    out = []
+    for comp in nx.connected_components(h):
+        its = sorted(n for n in comp if g.nodes[n].get("kind") == "item")
+        if len(its) < 2:
+            continue
+        out.append({
+            "items": [n.split(":", 1)[1] for n in its],
+            "size": len(its),
+            "max_score": max(g.nodes[n].get("score", 0) for n in its),
+            "shared": sorted(g.nodes[n]["label"] for n in comp if g.nodes[n].get("kind") != "item")[:6],
+            "risk": round(100 * max(ppr.get(n, 0) for n in its) / top),
+        })
+    return sorted(out, key=lambda c: (-c["max_score"], -c["size"]))

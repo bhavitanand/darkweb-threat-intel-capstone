@@ -88,10 +88,10 @@ function detail(a){
   const sig=a.signals.map(s=>`<div class="sig"><div class="top"><b>${esc(s.name)}</b><span>${s.score}</span></div><div class="bar"><i style="width:${s.score}%"></i></div><div class="mute">${esc(s.why)}${s.evidence?` <code>${esc(s.evidence)}</code>`:''}</div></div>`).join('');
   const iocs=Object.entries(a.iocs||{}).map(([t,v])=>v.map(x=>`<div><span class="mute">${t}</span> <code>${esc(x)}</code></div>`).join('')).join('')||'<span class="mute">none</span>';
   $('#detail').innerHTML=`<span class="pill ${a.severity}">${a.severity}</span> <b>${a.score}/100</b> <span class="mute">${esc(a.category)} (${Math.round(a.confidence*100)}% confidence)</span>
-  <h2 style="margin:8px 0">${esc(a.title)}</h2><p class="mute">${esc(a.text)}</p><h3>Why it scored ${a.score}</h3>${sig}<h3>Indicators</h3>${iocs}
+  <h2 style="margin:8px 0">${esc(a.title)}</h2><p class="mute">${esc(a.text)}</p><h3>Why it scored ${a.score}</h3>${sig}<h3>Indicators</h3>${iocs}<h3>ATT&amp;CK</h3>${(a.mitre||[]).map(t=>`<div><a href="${t.url}" target="_blank">${t.id}</a> ${esc(t.name)}</div>`).join('')||'<span class="mute">none</span>'}
   <p><a href="/api/alerts/${a.item_id}/evidence" target="_blank">Open evidence pack</a> <span class="mute">(self-contained, SHA-256 sealed)</span></p>`;
 }
-function drawGraph({graph:g,linked_actors:la}){
+function drawGraph({graph:g,linked_actors:la,campaigns:cp}){
   const cv=$('#graph'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
   const keep=new Set(g.links.map(l=>l.source).concat(g.links.map(l=>l.target)));
   const N=g.nodes.filter(n=>keep.has(n.id)).map((n,i)=>({...n,x:W/2+Math.cos(i)*120,y:H/2+Math.sin(i)*90,vx:0,vy:0}));
@@ -107,6 +107,7 @@ function drawGraph({graph:g,linked_actors:la}){
   ctx.font='10px system-ui';for(const n of N){ctx.fillStyle=col[n.kind]||'#6cc3a0';ctx.beginPath();ctx.arc(n.x,n.y,n.kind==='item'?3.5:6,0,7);ctx.fill();
     if(n.kind!=='item'){ctx.fillStyle=getComputedStyle(document.body).color;ctx.fillText(n.label.slice(0,18),n.x+8,n.y+3)}}
   $('#linked').innerHTML=la.length?'<b>Possible same operator:</b> '+la.map(x=>`${x.actors.map(a=>esc(a.split(':')[1])).join(' and ')} share ${x.type} <code>${esc(x.shared.split(':').slice(1).join(':').slice(0,26))}</code>`).join('; '):'No shared payment addresses or IOCs between actors in the current data.';
+  if(cp&&cp.length)$('#linked').innerHTML+=`<div style="margin-top:6px"><b>Campaigns:</b> ${cp.map(c=>`${c.size} alerts linked by ${c.shared.map(esc).join(', ')} (max ${c.max_score})`).join('; ')}</div>`;
 }
 ['#q','#sev','#cat'].forEach(s=>$(s).addEventListener('input',render));
 $('#wadd').onclick=async()=>{const v=$('#wval').value.trim();if(!v)return;await api('/watchlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:$('#wkind').value,value:v})});$('#wval').value='';load()};

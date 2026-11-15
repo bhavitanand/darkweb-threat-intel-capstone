@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from .. import __version__, pipeline
 from ..evidence import build_pack
 from ..graph import entities
+from ..mitre import techniques
 from ..models import Item
 from ..nlp.classifier import evaluate, get_classifier
 from ..store import db
@@ -108,6 +109,7 @@ def alert(item_id: str):
         raise HTTPException(404, "alert not found")
     r = rows[0]
     r["iocs"] = _iocs_for(item_id)
+    r["mitre"] = techniques(r["category"])
     return r
 
 
@@ -124,7 +126,8 @@ def graph():
         r["id"] = r["item_id"]
         r["iocs"] = _iocs_for(r["item_id"])
     g = entities.build_graph(rows)
-    return {"graph": entities.to_json(g), "linked_actors": entities.linked_actors(g)}
+    return {"graph": entities.to_json(g), "linked_actors": entities.linked_actors(g),
+            "campaigns": entities.campaigns(g)}
 
 
 @app.get("/api/watchlist")

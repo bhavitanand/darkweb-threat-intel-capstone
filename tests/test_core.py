@@ -102,3 +102,18 @@ def test_hybrid_beats_each_component_on_heldout_templates():
     r = evaluate()
     assert r["hybrid"] >= max(r["rules"], r["ml"])
     assert r["hybrid"] > 0.75
+
+
+def test_campaigns_ignore_same_actor_and_link_shared_wallet():
+    rows = [
+        {"id": "1", "actor": "a", "score": 90, "iocs": {"btc": ["W1"]}},
+        {"id": "2", "actor": "b", "score": 40, "iocs": {"btc": ["W1"]}},
+        {"id": "3", "actor": "a", "score": 80, "iocs": {}},
+    ]
+    c = entities.campaigns(entities.build_graph(rows))
+    assert len(c) == 1 and c[0]["size"] == 2 and c[0]["max_score"] == 90
+
+
+def test_mitre_mapping():
+    from darklens.mitre import techniques
+    assert techniques("exploit_sale")[0]["id"] == "T1190" and techniques("benign") == []

@@ -28,6 +28,9 @@ python -m darklens serve          # loads the offline demo data, then open http:
 | **Watchlist-aware** | Watched domains and emails turn generic intel into "this is about us" and are the strongest signal. |
 | **Validated IOCs** | Bitcoin and Tron addresses pass Base58Check, private IPs and file names are dropped, defanged indicators (`hxxp`, `[.]`) are restored. |
 | **Actor linking** | Personas that share a wallet or indicator are linked, the same idea as co-spend clustering in blockchain forensics. |
+| **Campaign correlation** | Alerts linked through shared wallets or indicators are grouped, and risk spreads with Personalized PageRank. Same-handle posts are not counted as a campaign. |
+| **ATT&CK mapping** | Every alert lists the MITRE ATT&CK techniques its category points to. |
+| **Observed vs inferred** | Evidence packs separate what was observed, what was inferred, and what was not checked. Unknown is never reported as safe. |
 | **Privacy by design** | Passwords are masked before storage, password checks use k-anonymity, crawler is allowlisted and read-only. |
 | **Offline demo mode** | Every collector has a synthetic snapshot, so the demo never depends on a feed, key or Tor circuit. |
 
@@ -94,7 +97,7 @@ Ransomware.live data requires attribution and non-commercial use. The base URL i
 
 ## API
 
-`GET /api/stats` `GET /api/alerts` `GET /api/alerts/{id}` `GET /api/alerts/{id}/evidence` `GET /api/graph` `GET|POST /api/watchlist` `POST /api/ingest` `POST /api/analyse` `GET /api/eval`. Interactive docs at `/docs`.
+`GET /api/stats` `GET /api/alerts` `GET /api/alerts/{id}` `GET /api/alerts/{id}/evidence` `GET /api/graph` (includes campaigns) `GET|POST /api/watchlist` `POST /api/ingest` `POST /api/analyse` `GET /api/eval`. Interactive docs at `/docs`.
 
 ## Honest limitations
 
