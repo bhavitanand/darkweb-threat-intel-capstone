@@ -1,0 +1,148 @@
+# DarkLens detection rules. Original work, released under the MIT licence (same as the project).
+# Each rule fires when ANY pattern matches (case-insensitive regex). `weight` is the strength of the
+# signal on its own (0-100). Signals from many rules are combined with noisy-OR in darklens/scoring.py.
+
+- id: DL-RAN-001
+  category: ransomware_leak
+  name: Leak countdown
+  weight: 70
+  why: Extortion sites publish a deadline before releasing stolen data.
+  patterns: ['\b(data|files?) will be (published|released|leaked)\b', '\bcountdown\b', '\bdeadline\b.{0,40}\b(days?|hours?)\b', '\btime left\b']
+- id: DL-RAN-002
+  category: ransomware_leak
+  name: Victim claim with data volume
+  weight: 80
+  why: A named victim plus an amount of stolen data is the typical shape of a leak-site entry.
+  patterns: ['\b\d+(\.\d+)?\s?(gb|tb|mb)\b.{0,60}\b(stolen|exfiltrat|download|data|leak)', '\b(stolen|exfiltrated)\b.{0,40}\b\d+(\.\d+)?\s?(gb|tb)\b']
+- id: DL-RAN-003
+  category: ransomware_leak
+  name: Ransom negotiation language
+  weight: 65
+  why: Phrases about paying, decrypting or negotiating point to an active extortion case.
+  patterns: ['\bransom\b', '\bdecrypt(ion|or)?\b', '\bnegotiat', '\bpay (us|the)\b', '\bchat with (us|support)\b']
+- id: DL-RAN-004
+  category: ransomware_leak
+  name: Double extortion
+  weight: 75
+  why: Threatening to publish data as well as keep files encrypted is double extortion.
+  patterns: ['\bdouble extortion\b', '\bencrypted and (stolen|exfiltrated)\b', '\bpublish(ed)? (your|the) data\b']
+- id: DL-RAN-005
+  category: ransomware_leak
+  name: Ransomware affiliate recruiting
+  weight: 60
+  why: Ransomware-as-a-service operators advertise revenue splits to affiliates.
+  patterns: ['\baffiliate (program|panel|wanted)\b', '\b\d{2}\s?/\s?\d{2}\s?(split|revenue)\b', '\braas\b', '\bransomware[- ]as[- ]a[- ]service\b']
+
+- id: DL-CRD-001
+  category: credential_dump
+  name: Combolist format
+  weight: 80
+  why: Many email:password pairs in a row is the signature of a combolist.
+  patterns: ['(?:[\w.+-]+@[\w-]+\.[\w.]+:[^\s:]{4,}\s*){3,}']
+- id: DL-CRD-002
+  category: credential_dump
+  name: Database dump wording
+  weight: 70
+  why: Sellers describe breaches by rows, tables and hash type.
+  patterns: ['\b\d[\d,\.]*\s?(k|m|million)?\s?(rows|records|users|accounts)\b.{0,50}\b(leak|dump|database|breach|sale)', '\b(sql|db) dump\b', '\b(md5|bcrypt|sha1)\b.{0,30}\b(hash|hashed)\b']
+- id: DL-CRD-003
+  category: credential_dump
+  name: Stealer logs
+  weight: 80
+  why: Infostealer logs hold session cookies and saved passwords from infected machines.
+  patterns: ['\bstealer logs?\b', '\b(redline|raccoon|lumma|vidar|stealc)\b', '\bcookies?\b.{0,40}\b(logs?|bundle|cloud)\b']
+- id: DL-CRD-004
+  category: credential_dump
+  name: Corporate target named
+  weight: 60
+  why: A leak tied to a named company or domain is directly actionable for that company.
+  patterns: ['\b(employee|customer|corporate|admin) (credentials|logins|accounts)\b', '\bvpn (logins?|credentials)\b']
+
+- id: DL-EXP-001
+  category: exploit_sale
+  name: Zero-day or exploit for sale
+  weight: 85
+  why: Selling a working exploit is a high-impact supply-chain risk.
+  patterns: ['\b0[- ]?day\b', '\bzero[- ]day\b', '\bexploit\b.{0,40}\b(for sale|selling|price|btc|xmr)\b', '\bpoc\b.{0,30}\b(sale|selling)\b']
+- id: DL-EXP-002
+  category: exploit_sale
+  name: CVE with working exploit
+  weight: 70
+  why: A CVE number alongside words like RCE or weaponised signals active exploitation interest.
+  patterns: ['CVE-\d{4}-\d{4,7}.{0,80}\b(rce|lpe|weaponi[sz]ed|working|exploit|bypass)\b', '\b(rce|lpe|auth bypass)\b.{0,60}CVE-\d{4}-\d{4,7}']
+- id: DL-EXP-003
+  category: exploit_sale
+  name: Initial access broker listing
+  weight: 85
+  why: Brokers sell footholds (RDP, VPN, shells) into named organisation types before ransomware crews use them.
+  patterns: ['\b(rdp|vpn|citrix|webshell|domain admin)\b.{0,60}\b(access|for sale|selling)\b', '\binitial access\b', '\baccess to\b.{0,40}\b(company|corp|revenue|employees)\b']
+
+- id: DL-PHS-001
+  category: phishing_kit
+  name: Phishing kit or panel
+  weight: 80
+  why: Ready-made kits clone login pages and collect victim input.
+  patterns: ['\bphishing (kit|page|panel|template)s?\b', '\bscam ?page\b', '\bletter(s)? \+? ?panel\b']
+- id: DL-PHS-002
+  category: phishing_kit
+  name: Brand impersonation
+  weight: 60
+  why: Kits advertise the brands they clone.
+  patterns: ['\b(office ?365|microsoft|paypal|netflix|dhl|amazon|dropbox|icici|hdfc|sbi|paytm)\b.{0,40}\b(kit|page|clone|template|login)\b']
+- id: DL-PHS-003
+  category: phishing_kit
+  name: Evasion features
+  weight: 65
+  why: Anti-bot and 2FA-bypass features are selling points of modern kits.
+  patterns: ['\banti[- ]?bot\b', '\bcloaking\b', '\b(2fa|mfa|otp) (bypass|relay|intercept)\b', '\bevilginx\b|\bmodlishka\b']
+
+- id: DL-MAL-001
+  category: malware_sale
+  name: Malware or loader for sale
+  weight: 80
+  why: Commodity malware sold as a service lowers the barrier for attackers.
+  patterns: ['\b(rat|loader|crypter|botnet|stealer|rootkit|keylogger)\b.{0,50}\b(for sale|selling|lifetime|subscription|\$\d+|price)\b', '\bfud\b', '\bundetected\b.{0,30}\b(av|antivirus|edr)\b']
+- id: DL-MAL-002
+  category: malware_sale
+  name: EDR evasion claim
+  weight: 70
+  why: Claims of bypassing endpoint protection indicate offensive tooling aimed at enterprises.
+  patterns: ['\b(bypass|evade|kill)\w*\b.{0,30}\b(edr|defender|crowdstrike|sentinelone|antivirus)\b']
+
+- id: DL-FRD-001
+  category: carding_fraud
+  name: Card data sale
+  weight: 75
+  why: Stolen payment data is sold in bulk with BIN and country filters.
+  patterns: ['\b(cvv|fullz|dumps)\b', '\bbin\b.{0,30}\b(list|country|checker)\b', '\bcc\b.{0,10}\b(shop|checker)\b']
+- id: DL-FRD-002
+  category: carding_fraud
+  name: Cash-out or mule services
+  weight: 60
+  why: Laundering and mule recruitment are the money end of fraud operations.
+  patterns: ['\bcash[- ]?out\b', '\bmules?\b.{0,30}\b(wanted|needed|recruit)', '\bdrops?\b.{0,20}\b(wanted|service|address)\b']
+
+- id: DL-GEN-001
+  category: threat_chatter
+  name: Targeting statement
+  weight: 55
+  why: Posts that say who will be attacked are early warning.
+  patterns: ['\b(we|i) (will|are going to|plan to) (attack|hit|target|breach)\b', '\btarget(ing)?\b.{0,30}\b(bank|hospital|government|telecom|retail|energy)\b']
+- id: DL-GEN-002
+  category: threat_chatter
+  name: Hacktivist campaign
+  weight: 45
+  why: DDoS and defacement campaigns are announced in advance on channels.
+  patterns: ['\b(ddos|defac(e|ement))\b', '#op[a-z]+']
+- id: DL-GEN-003
+  category: threat_chatter
+  name: Cryptocurrency payment instruction
+  weight: 35
+  why: A payment address next to a threat or sale is a strong monetisation marker.
+  patterns: ['\b(send|pay|payment)\b.{0,40}\b(btc|bitcoin|xmr|monero|usdt)\b', '\bwallet\b.{0,15}\b(bc1|1[a-km-zA-HJ-NP-Z1-9]|3[a-km-zA-HJ-NP-Z1-9]|0x)']
+- id: DL-GEN-004
+  category: threat_chatter
+  name: Escrow and trust words
+  weight: 25
+  why: Escrow and vouch language is common on criminal marketplaces and forums.
+  patterns: ['\bescrow\b', '\bvouch(ed|es)?\b', '\btrusted seller\b']
