@@ -49,6 +49,13 @@ def analyse(item: Item, watch_domains: list[str] | None = None, watch_emails: li
     category, conf, probs = clf.classify(text)
     signals: list[Signal] = [s for _, s in run_rules(text)]
 
+    if item.kind == "leak_claim":
+        # The source itself says this organisation was claimed by a ransomware group: that is evidence a text
+        # model cannot see in a short, templated description, and it fixes the category.
+        category, conf = "ransomware_leak", max(conf if category == "ransomware_leak" else 0.0, 0.9)
+        signals.append(Signal("Listed on a leak-site tracker", 75,
+                              f"{item.source} lists this organisation as a ransomware victim.", item.actor))
+
     if category != "benign":
         signals.append(Signal("Classifier", int(CATEGORY_BASE[category] * conf), f"Text looks like '{category}' (confidence {conf:.0%}).", category))
 
@@ -80,6 +87,9 @@ def collect(offline: bool = True) -> list[Item]:
     items += ransomware_live.fetch(offline=offline)
     items += threatfox.fetch(offline=offline)
     items += forums.fetch(offline=offline)
+    if offline:
+        for it in items:
+            it.meta["demo"] = True  # synthetic sample data, shown with a Demo badge
     return items
 
 
@@ -101,3 +111,29 @@ def run(offline: bool = True, con=None, items: list[Item] | None = None) -> dict
             n_alerts += 1
     con.commit()
     return {"items": len(items), "alerts": n_alerts}
+
+
+def rescore(con) -> dict:
+    """Re-score every stored item (demo and live) against the current watchlist, without collecting anything.
+
+    Stored text already has passwords masked, but the masked pairs still parse, so watchlist exposure is found.
+    Items keep their stored id, because the id is a hash of the original unmasked text.
+    """
+    clf = get_classifier()
+    wl = db.watch_all(con)
+    wdom = [v for k, v in wl if k == "domain"]
+    wmail = [v for k, v in wl if k == "email"]
+    n = 0
+    for r in con.execute("SELECT * FROM items").fetchall():
+        it = Item(source=r["source"], kind=r["kind"], title=r["title"] or "", text=r["text"] or "", url=r["url"] or "",
+                  seen_at=r["seen_at"] or "", actor=r["actor"] or "", org=r["org"] or "", country=r["country"] or "",
+                  meta=json.loads(r["meta"] or "{}"))
+        a = analyse(it, wdom, wmail, clf)
+        db.add_iocs(con, r["id"], a.iocs)
+        if a.score > 0:
+            db.upsert_alert(con, r["id"], a.category, a.confidence, a.score, a.severity, a.signals, a.probs, now_iso())
+            n += 1
+        else:
+            db.alert_delete(con, r["id"])
+    con.commit()
+    return {"items": len(con.execute("SELECT id FROM items").fetchall()), "alerts": n}

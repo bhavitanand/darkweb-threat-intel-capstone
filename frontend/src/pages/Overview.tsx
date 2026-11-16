@@ -1,8 +1,10 @@
 import { ArrowRight, ScanSearch } from 'lucide-react';
 import { api } from '../api';
 import { useAsync } from '../hooks';
-import { SEVERITY_META, SEVERITY_ORDER, TONE_HEX, categoryLabel } from '../lib';
+import { SEVERITY_META, SEVERITY_ORDER, TONE_HEX, categoryLabel, mostWorrying } from '../lib';
 import { AlertRow } from '../components/AlertRow';
+import DataStatus from '../components/DataStatus';
+import SourceCredit from '../components/SourceCredit';
 import { Bar, ErrorBox, Loading, Section, StatTile } from '../components/ui';
 
 const TONE_VAR = TONE_HEX;
@@ -20,7 +22,8 @@ export default function Overview() {
           words why. Add your own domains and emails and anything that mentions them jumps to the top.
         </p>
         <div className="row" style={{ marginTop: 18 }}>
-          <a className="btn btn-brand" href="#/alerts">See the alerts <ArrowRight size={16} aria-hidden="true" /></a>
+          <a className="btn btn-brand" href="#/start">New here? Get started <ArrowRight size={16} aria-hidden="true" /></a>
+          <a className="btn btn-ghost" href="#/alerts">See the alerts</a>
           <a className="btn btn-ghost" href="#/analyse"><ScanSearch size={16} aria-hidden="true" /> Check a post yourself</a>
         </div>
       </div>
@@ -81,6 +84,8 @@ export default function Overview() {
             </Section>
           </div>
 
+          <DataStatus real={stats.data.real_alerts} demo={stats.data.demo_alerts} />
+
           <Section
             title="Most worrying right now"
             hint="The five highest-scoring alerts."
@@ -89,11 +94,14 @@ export default function Overview() {
             {alerts.loading && !alerts.data && <Loading what="alerts" slow={alerts.slow} />}
             {alerts.error && <ErrorBox message={alerts.error} onRetry={alerts.reload} />}
             {alerts.data && (
-              <ul className="alert-list">
-                {[...alerts.data].sort((a, b) => b.score - a.score).slice(0, 5).map((a) => (
-                  <li key={a.item_id}><AlertRow a={a} /></li>
-                ))}
-              </ul>
+              <>
+                <ul className="alert-list">
+                  {mostWorrying(alerts.data).map((a) => (
+                    <li key={a.item_id}><AlertRow a={a} /></li>
+                  ))}
+                </ul>
+                <SourceCredit alerts={mostWorrying(alerts.data)} />
+              </>
             )}
           </Section>
           <p className="muted">{stats.data.attribution}</p>

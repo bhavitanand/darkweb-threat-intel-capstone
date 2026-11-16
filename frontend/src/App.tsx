@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Eye, LayoutDashboard, Network, ScanSearch, ShieldAlert } from 'lucide-react';
+import { BookOpen, Compass, Eye, LayoutDashboard, Network, ScanSearch, ShieldAlert } from 'lucide-react';
 import { BASE } from './api';
+import { RANSOMWARE_LIVE_URL, REPO_URL } from './lib';
 import { useRoute } from './store';
 import type { Route } from './store';
 import Overview from './pages/Overview';
@@ -10,9 +11,11 @@ import Graph from './pages/Graph';
 import Watchlist from './pages/Watchlist';
 import Analyse from './pages/Analyse';
 import Learn from './pages/Learn';
+import Start from './pages/Start';
 
 const NAV = [
   { name: 'overview', href: '#/', label: 'Overview', Icon: LayoutDashboard },
+  { name: 'start', href: '#/start', label: 'Get started', Icon: Compass },
   { name: 'alerts', href: '#/alerts', label: 'Alerts', Icon: ShieldAlert },
   { name: 'graph', href: '#/graph', label: 'Connections', Icon: Network },
   { name: 'watchlist', href: '#/watchlist', label: 'Watchlist', Icon: Eye },
@@ -40,6 +43,7 @@ function Status() {
 
 function page(route: Route) {
   switch (route.name) {
+    case 'start': return <Start />;
     case 'alerts': return <Alerts />;
     case 'alert': return <AlertReport id={route.id} />;
     case 'graph': return <Graph />;
@@ -81,7 +85,10 @@ export default function App() {
         {page(route)}
       </main>
       <footer className="footer">
-        DarkLens is a Samsung Innovation Campus capstone project. Demo data is synthetic. It reads text only and never stores real stolen data.
+        DarkLens is a Samsung Innovation Campus capstone project. Alerts marked Demo are made up. It reads text only and
+        never stores real stolen data. Live ransomware claims: source{' '}
+        <a href={RANSOMWARE_LIVE_URL} target="_blank" rel="noreferrer">Ransomware.live</a> (non-commercial use).{' '}
+        <a href={REPO_URL} target="_blank" rel="noreferrer">Source and documentation on GitHub</a>.
       </footer>
     </>
   );

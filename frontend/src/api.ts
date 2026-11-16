@@ -1,4 +1,6 @@
-import type { Alert, AlertDetail, Analysis, EvalResult, GraphData, Stats, WatchEntry } from './types';
+import type {
+  Alert, AlertDetail, Analysis, EvalResult, FeedbackCounts, GraphData, IngestStatus, Stats, WatchEntry,
+} from './types';
 
 // Dev: empty, so requests go to /api and Vite proxies them. Production: the deployed API origin.
 export const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/+$/, '');
@@ -40,5 +42,9 @@ export const api = {
   addWatch: (kind: WatchEntry['kind'], value: string) => post<WatchEntry[]>('/api/watchlist', { kind, value }),
   analyse: (text: string, title: string) => post<Analysis>('/api/analyse', { text, title }),
   evaluation: () => request<EvalResult>('/api/eval'),
+  ingestStatus: () => request<IngestStatus>('/api/ingest/status'),
+  feedback: (id: string, verdict: 'correct' | 'wrong', category = '') =>
+    post<FeedbackCounts>(`/api/alerts/${encodeURIComponent(id)}/feedback`, { verdict, category }),
+  exportUrl: (file: 'alerts.csv' | 'stix.json') => `${BASE}/api/export/${file}`,
   evidenceUrl: (id: string) => `${BASE}/api/alerts/${encodeURIComponent(id)}/evidence`,
 };

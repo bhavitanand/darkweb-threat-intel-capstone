@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  categoryLabel, cleanWatchValue, filterAlerts, iocLabel, layoutGraph, severityFromScore, severityMeta, splitRule, timeAgo,
+  categoryLabel, cleanWatchValue, filterAlerts, iocLabel, layoutGraph, mostWorrying, needsRansomwareLiveCredit, severityFromScore, severityMeta, splitRule, timeAgo,
 } from './lib';
 import type { Alert, GraphLink, GraphNode } from './types';
 
 const mk = (over: Partial<Alert>): Alert => ({
   item_id: 'a', score: 10, severity: 'low', category: 'benign', confidence: 0.9, signals: [], probs: {},
   source: 's', kind: 'post', title: 't', text: '', url: null, seen_at: null, actor: null, org: null,
-  country: null, iocs: {}, ...over,
+  country: null, iocs: {}, demo: false, restricted: false, ...over,
 });
 
 describe('labels', () => {
@@ -74,6 +74,39 @@ describe('filterAlerts', () => {
     expect(filterAlerts(list, { severity: '', category: 'ransomware_leak', q: '' })[0].item_id).toBe('2');
     expect(filterAlerts(list, { severity: '', category: '', q: ' ACME ' })[0].item_id).toBe('2');
     expect(filterAlerts(list, { severity: 'low', category: 'ransomware_leak', q: '' })).toHaveLength(0);
+  });
+});
+
+describe('filterAlerts by data source', () => {
+  const list = [mk({ item_id: 'd', demo: true, score: 50 }), mk({ item_id: 'r', demo: false, score: 40 })];
+  it('separates real feeds from the demo samples', () => {
+    const f = { severity: '', category: '', q: '' };
+    expect(filterAlerts(list, { ...f, data: 'real' }).map((a) => a.item_id)).toEqual(['r']);
+    expect(filterAlerts(list, { ...f, data: 'demo' }).map((a) => a.item_id)).toEqual(['d']);
+    expect(filterAlerts(list, { ...f, data: '' })).toHaveLength(2);
+    expect(filterAlerts(list, f)).toHaveLength(2);
+  });
+});
+
+describe('needsRansomwareLiveCredit', () => {
+  it('is true only when a Ransomware.live item is on the page', () => {
+    expect(needsRansomwareLiveCredit([mk({ source: 'ransomware.live' }), mk({ source: 'forum' })])).toBe(true);
+    expect(needsRansomwareLiveCredit([mk({ source: 'threatfox' })])).toBe(false);
+    expect(needsRansomwareLiveCredit([])).toBe(false);
+  });
+});
+
+describe('mostWorrying', () => {
+  const demoHigh = mk({ item_id: 'd', demo: true, score: 95 });
+  const realLow = mk({ item_id: 'r1', demo: false, score: 30 });
+  const realHigh = mk({ item_id: 'r2', demo: false, score: 70 });
+  it('puts real alerts ahead of higher-scoring demo ones', () => {
+    expect(mostWorrying([demoHigh, realLow, realHigh]).map((a) => a.item_id)).toEqual(['r2', 'r1']);
+  });
+  it('falls back to demo alerts when nothing is real, and caps the list', () => {
+    expect(mostWorrying([demoHigh]).map((a) => a.item_id)).toEqual(['d']);
+    expect(mostWorrying(Array.from({ length: 9 }, (_, i) => mk({ item_id: String(i), score: i })))).toHaveLength(5);
+    expect(mostWorrying([])).toEqual([]);
   });
 });
 

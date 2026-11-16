@@ -13,6 +13,7 @@ export function AlertRow({ a }: { a: Alert }) {
         <div className="alert-meta">
           <SeverityChip severity={a.severity} />
           <Chip>{categoryLabel(a.category)}</Chip>
+          {a.demo && <Chip tone="info">Demo</Chip>}
           <span>{a.org ? `About ${a.org}` : a.actor ? `By ${a.actor}` : a.source}</span>
           <span>{timeAgo(a.seen_at)}</span>
         </div>

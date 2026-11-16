@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react';
 
 export type Route =
   | { name: 'overview' }
+  | { name: 'start' }
   | { name: 'alerts' }
   | { name: 'alert'; id: string }
   | { name: 'graph' }
@@ -16,6 +17,8 @@ export function parseRoute(hash: string): Route {
   switch (head) {
     case 'alerts':
       return rest.length ? { name: 'alert', id: decodeURIComponent(rest.join('/')) } : { name: 'alerts' };
+    case 'start':
+      return { name: 'start' };
     case 'graph':
       return { name: 'graph' };
     case 'watchlist':

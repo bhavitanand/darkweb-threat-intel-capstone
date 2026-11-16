@@ -6,5 +6,5 @@ scikit-learn>=1.4
 networkx>=3.2
 PyYAML>=6.0
 numpy>=1.26
-pytest>=8.0
+psycopg[binary]>=3.2
 # optional, only for the Tor crawler: pip install "requests[socks]" stem

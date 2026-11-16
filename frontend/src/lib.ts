@@ -1,6 +1,14 @@
 import type { Alert, GraphLink, GraphNode, Severity } from './types';
 
-export type Tone = 'danger' | 'orange' | 'caution' | 'safe' | 'info' | 'muted';
+export const REPO_URL = 'https://github.com/bhavitanand/darkweb-threat-intel-capstone';
+export const RANSOMWARE_LIVE_URL = 'https://www.ransomware.live';
+
+/** Ransomware.live's terms require its name, with a link back, wherever its data is shown. */
+export function needsRansomwareLiveCredit(alerts: { source: string }[]): boolean {
+  return alerts.some((a) => a.source === 'ransomware.live');
+}
+
+export type Tone ='danger' | 'orange' | 'caution' | 'safe' | 'info' | 'muted';
 
 export const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
 
@@ -145,6 +153,8 @@ export interface AlertFilter {
   severity: string;
   category: string;
   q: string;
+  /** '' = everything, 'real' = live feeds only, 'demo' = the synthetic samples only. */
+  data?: string;
 }
 
 export function filterAlerts(alerts: Alert[], f: AlertFilter): Alert[] {
@@ -152,8 +162,15 @@ export function filterAlerts(alerts: Alert[], f: AlertFilter): Alert[] {
   return alerts
     .filter((a) => !f.severity || a.severity === f.severity)
     .filter((a) => !f.category || a.category === f.category)
+    .filter((a) => !f.data || (f.data === 'demo' ? a.demo : !a.demo))
     .filter((a) => !q || `${a.title} ${a.text} ${a.actor ?? ''} ${a.org ?? ''}`.toLowerCase().includes(q))
     .sort((x, y) => y.score - x.score);
+}
+
+/** The top alerts for the overview. Real alerts come first: made-up demo alerts only fill in when there are none. */
+export function mostWorrying(alerts: Alert[], n = 5): Alert[] {
+  const real = alerts.filter((a) => !a.demo);
+  return [...(real.length ? real : alerts)].sort((x, y) => y.score - x.score).slice(0, n);
 }
 
 /** Domain or email, as the watchlist accepts them. Returns the cleaned value or null. */

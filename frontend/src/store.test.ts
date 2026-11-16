@@ -13,6 +13,7 @@ describe('parseRoute', () => {
     expect(parseRoute('#/watchlist')).toEqual({ name: 'watchlist' });
     expect(parseRoute('#/analyse')).toEqual({ name: 'analyse' });
     expect(parseRoute('#/learn')).toEqual({ name: 'learn' });
+    expect(parseRoute('#/start')).toEqual({ name: 'start' });
   });
   it('round-trips an alert id, including odd characters', () => {
     expect(parseRoute('#' + alertPath('abc123'))).toEqual({ name: 'alert', id: 'abc123' });

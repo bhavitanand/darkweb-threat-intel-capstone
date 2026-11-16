@@ -198,6 +198,8 @@ summary { cursor: pointer; font-weight: 600; }
 .state-error { border-color: #f4c4c1; background: var(--danger-bg); color: var(--danger); }
 .state-error p { color: var(--ink-2); }
 .state-empty { justify-content: center; text-align: center; }
+.state-warn { border-color: #efdcb0; background: var(--caution-bg); border-style: solid; }
+.state-warn p { color: var(--ink-2); margin: 4px 0 0; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -221,6 +223,14 @@ summary { cursor: pointer; font-weight: 600; }
 .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
 .steps li { counter-increment: s; display: flex; gap: 14px; }
 .steps li::before { content: counter(s); flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+
+.src-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.src-list li { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.src-list li > span:first-child { min-width: 260px; font-weight: 600; }
+.src-note { font-size: 12.5px; }
+.steps p { margin: 4px 0 10px; color: var(--ink-2); }
+.footer a { color: var(--ink-2); }
+.source-credit { font-size: 12.5px; margin: 10px 0 0; }
 
 @media (max-width: 860px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }

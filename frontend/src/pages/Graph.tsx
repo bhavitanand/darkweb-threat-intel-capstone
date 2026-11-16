@@ -5,6 +5,7 @@ import { SEVERITY_META, SEVERITY_ORDER, TONE_HEX, categoryLabel, iocLabel, layou
 import { alertPath, go } from '../store';
 import { Empty, ErrorBox, Loading, PageHead, Section, SeverityChip } from '../components/ui';
 import { Chip } from '../components/ui';
+import SourceCredit from '../components/SourceCredit';
 
 const W = 960;
 const H = 560;
@@ -148,6 +149,8 @@ export default function Graph() {
               <p className="muted">No two posters share a clue in the current data.</p>
             )}
           </Section>
+
+          <SourceCredit alerts={alerts.data ?? []} />
 
           <Section
             title="Connected alerts"

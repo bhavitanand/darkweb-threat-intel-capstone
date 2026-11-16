@@ -45,6 +45,15 @@ export default function Watchlist() {
         title="Your watchlist"
         sub="Tell DarkLens which domains and email addresses are yours. Any post that mentions them, or that contains leaked logins for them, jumps to the top."
       />
+      <div className="state state-warn" role="note" style={{ marginBottom: 16 }}>
+        <div>
+          <strong>This watchlist is shared by everyone who uses this site.</strong>
+          <p>
+            There are no accounts yet, so anyone can see and add entries. Only add domains you are happy to be public, or run
+            your own copy of DarkLens for private monitoring.
+          </p>
+        </div>
+      </div>
       <div className="grid grid-2">
         <Section title="Add something to watch">
           <form onSubmit={submit} className="stack" noValidate>
@@ -62,7 +71,7 @@ export default function Watchlist() {
                 autoComplete="off"
                 aria-describedby="wv-help"
               />
-              <p id="wv-help" className="muted">Only the text is stored. Nothing is sent anywhere else.</p>
+              <p id="wv-help" className="muted">Only the text is stored, and it is visible to other visitors.</p>
             </div>
             <button className="btn" disabled={busy || !value.trim()}>
               <Plus size={16} aria-hidden="true" /> {busy ? 'Adding and re-checking...' : 'Start watching'}

@@ -1,146 +1,155 @@
 # DarkLens
 
-**Multi-layered dark web analysis, credential breach detection and proactive cyber threat intelligence.**
+[![CI](https://github.com/bhavitanand/darkweb-threat-intel-capstone/actions/workflows/ci.yml/badge.svg)](https://github.com/bhavitanand/darkweb-threat-intel-capstone/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-DarkLens collects threat chatter and indicators from legal feeds (and an allowlisted Tor crawler), classifies it, extracts indicators, checks your watched domains for leaked credentials, links actors through shared payment addresses, and turns it all into scored, explainable alerts on a dashboard.
+**Multi-layered dark web analysis, credential breach detection and proactive cyber threat intelligence, explained in plain English.**
+
+**Live site: <https://darklens-seven.vercel.app>** · API docs: <https://darklens-capstone.onrender.com/docs> · [Documentation](#documentation)
+
+DarkLens watches public sources where criminals boast, sell and extort (today: live ransomware victim claims from Ransomware.live), scores every item from 0 to 100, and tells you **why** in plain words. Add your own domains and emails and anything that mentions them jumps to the top. It can also message you when that happens.
 
 > Built as a Samsung Innovation Campus capstone (Batch A5). Defensive research only, see [SECURITY.md](SECURITY.md).
 
-## Try it in 60 seconds (no API keys, no network)
+## Using the website
+
+The site has a built-in **Get started** page. In short:
+
+1. **Watchlist**: add your company's domains and emails. (The watchlist is shared by every visitor, since there are no accounts yet. Run your own copy for private monitoring.)
+2. **Alerts**: work from the top, Critical then High. Filter by type, or by real versus demo data.
+3. **Open an alert**: read the score, every reason behind it, the clues found, and the attack techniques it matches.
+4. **Decide**: Critical means act now, High means review within a day, Medium means keep an eye on it, Low needs nothing.
+5. **"Is this right?"**: tell DarkLens when it got the type wrong. This is how accuracy on real data is measured.
+6. **Take it with you**: export CSV or STIX 2.1, open a sealed evidence pack, or switch on chat and email alerts.
+
+Alerts marked **Demo** are made up so the tool is never empty. The full walkthrough, with the data flow, is in [docs/workflow.md](docs/workflow.md).
+
+## Run it yourself in 60 seconds (no accounts, no keys)
 
 ```bash
 pip install -r requirements.txt
-python -m darklens serve          # loads the offline demo data, then open http://127.0.0.1:8000
+python -m darklens serve                    # API and original dashboard on http://127.0.0.1:8000
+cd frontend && npm install && npm run dev   # website on http://localhost:5173 (proxies /api)
 ```
 
-1. Click the top alert to see **why** it scored what it did, signal by signal.
-2. In the Watchlist box add `granite-bank.example`. Everything is re-scored and the credential dump aimed at that domain jumps to 100.
-3. Look at the entity graph: two forum personas share one Bitcoin address, flagged as a possible single operator.
-4. Open the **evidence pack** for any alert: a self-contained HTML file sealed with a SHA-256 hash.
+Try it: open the top alert and read why it scored what it did. Add `granite-bank.example` to the watchlist and watch the credential dump aimed at that domain jump to 100. Look at the connection map: two forum personas share one Bitcoin address, flagged as a possible single operator.
 
-The page served at `/` is the original single-file dashboard. There is also a newer React app in [`frontend/`](frontend) with plain-language labels, a severity-coloured connection map and a "Check a post" tool; see [Web app](#web-app-frontend) below.
+Collect real data with `python -m darklens ingest --live`, after getting a free [Ransomware.live key](https://my.ransomware.live) (`RANSOMWARE_LIVE_API_KEY`, required by their terms) and optionally a free [abuse.ch key](https://auth.abuse.ch/) (`ABUSECH_AUTH_KEY`). A source without its key is skipped. Hosting it for others is covered in [docs/deployment.md](docs/deployment.md).
 
 ## What makes it different
 
 | Feature | How it works |
 | --- | --- |
-| **Explainable scores** | Every alert is a set of signals combined with noisy-OR, `1 - prod(1 - s/100)`. Weak signals add up, a strong one dominates. Generic content signals are discounted so only converging evidence reaches critical. |
+| **Explainable scores** | Every alert is a set of signals combined with noisy-OR, `1 - prod(1 - s/100)`. Weak signals add up, a strong one dominates. Generic signals are discounted so only converging evidence reaches critical. |
 | **Hybrid classifier** | 24 original MIT-licensed detection rules fused with a TF-IDF + logistic regression model over 8 categories. |
-| **Honest evaluation** | Tested on held-out sentence structures the model never saw, not just held-out rows. |
-| **Watchlist-aware** | Watched domains and emails turn generic intel into "this is about us" and are the strongest signal. |
+| **Honest evaluation** | Synthetic held-out templates, **plus** checks on real claims, reviewer feedback and your own labelled data. The page [docs/accuracy.md](docs/accuracy.md) says what is and is not measured. |
+| **Watchlist-aware** | Watched domains and emails turn generic intel into "this is about us" and are the strongest signal. Adding one re-scores everything stored. |
+| **Live and demo data, clearly separated** | Real feeds on a schedule with per-source status; synthetic samples carry a Demo badge and never trigger notifications. |
 | **Validated IOCs** | Bitcoin and Tron addresses pass Base58Check, private IPs and file names are dropped, defanged indicators (`hxxp`, `[.]`) are restored. |
-| **Actor linking** | Personas that share a wallet or indicator are linked, the same idea as co-spend clustering in blockchain forensics. |
-| **Campaign correlation** | Alerts linked through shared wallets or indicators are grouped, and risk spreads with Personalized PageRank. Same-handle posts are not counted as a campaign. |
+| **Actor linking and campaigns** | Personas that share a wallet or indicator are linked; alerts connected through shared indicators are grouped, with risk spread by Personalized PageRank. |
 | **ATT&CK mapping** | Every alert lists the MITRE ATT&CK techniques its category points to. |
 | **Observed vs inferred** | Evidence packs separate what was observed, what was inferred, and what was not checked. Unknown is never reported as safe. |
-| **Privacy by design** | Passwords are masked before storage, password checks use k-anonymity, crawler is allowlisted and read-only. |
-| **Offline demo mode** | Every collector has a synthetic snapshot, so the demo never depends on a feed, key or Tor circuit. |
+| **Privacy by design** | Passwords are masked before storage, password checks use k-anonymity, the crawler is allowlisted and read-only. |
+| **Integrations** | CSV and STIX 2.1 export, Slack/Discord/Teams webhook and email notifications. Sources whose terms forbid re-publishing (Ransomware.live) are credited with a link, shown without their raw text, and left out of exports. |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A[Ransomware.live] --> P
-  B[ThreatFox / abuse.ch] --> P
-  C[Allowlisted Tor crawler] --> P
-  D[Forum / channel posts] --> P
-  P[Pipeline] --> X[IOC extractor]
+  A[Ransomware.live] --> I
+  B[ThreatFox / abuse.ch] --> I
+  C[Allowlisted Tor crawler] --> I
+  D[Demo samples] --> I
+  I[Scheduled ingest] --> P[Pipeline]
+  P --> X[IOC extractor]
   P --> R[Detection rules]
   P --> M[TF-IDF classifier]
   X --> S[Noisy-OR scoring]
   R --> S
   M --> S
   W[Watchlist + breach checks] --> S
-  S --> DB[(SQLite)]
+  S --> DB[(SQLite or Postgres)]
   DB --> G[Entity graph]
   DB --> API[FastAPI]
   G --> API
-  API --> UI[Dashboard + evidence packs]
+  API --> UI[React website]
+  API --> EX[CSV / STIX / evidence packs]
+  DB --> N[Chat / email alerts]
+  UI --> FB[Reviewer feedback]
+  FB --> DB
 ```
 
-## Evaluation
+## Accuracy, honestly
 
-Macro-F1 on 350 held-out synthetic samples built from sentence structures not used for training:
-
-| Predictor | Macro-F1 |
+| Measured on | Result |
 | --- | --- |
-| Rules only | 0.771 |
-| TF-IDF + logistic regression only | 0.547 |
-| **Hybrid (default)** | **0.836** |
+| 350 synthetic held-out samples | Hybrid macro-F1 **0.836** (rules 0.771, model 0.547). Shows the method works, not real-world performance. |
+| 100 real Ransomware.live claims (16 Nov 2026) | First version scored 90% of them Low. Found by testing on real data and fixed: now all recognised, 68 Medium and 32 High. |
+| Real forum and market posts | **Not measured yet.** No labelled set exists. This is the top item on the [roadmap](docs/roadmap.md). |
 
-Reproduce with `python -m darklens eval`. Per-class results are printed, and the weakest class (threat chatter) is the honest limitation to work on next.
+Details, known weaknesses and how to contribute labels: [docs/accuracy.md](docs/accuracy.md). Reproduce with `python -m darklens eval` (also `--live-claims`, `--feedback`, `--csv FILE`).
+
+## Documentation
+
+| Page | What is in it |
+| --- | --- |
+| [docs/workflow.md](docs/workflow.md) | The data flow and what you are meant to do in the website |
+| [docs/deployment.md](docs/deployment.md) | Vercel + Render + Neon, every environment variable, keeping the free API awake |
+| [docs/data-sources.md](docs/data-sources.md) | Sources and their terms, what is stored and what never is, retention |
+| [docs/alerts-and-notifications.md](docs/alerts-and-notifications.md) | Chat and email alerts, exports |
+| [docs/accuracy.md](docs/accuracy.md) | What has been measured, weaknesses, how to measure properly |
+| [docs/api.md](docs/api.md) | Every endpoint |
+| [docs/roadmap.md](docs/roadmap.md) | What is done, what needs a person, what is next |
+| [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | Changes, how to contribute, ethics and responsible use |
 
 ## Project layout
 
 ```
 darklens/
   collectors/   ransomware_live, threatfox, forums (live + offline snapshots)
-  crawler/      allowlisted read-only Tor crawler
+  crawler/      allowlisted read-only Tor crawler (disabled by default)
   extract/      validated IOC extraction
   rules/        rules.yaml (24 original rules) and the engine
-  nlp/          synthetic corpus, hybrid classifier, evaluation
+  nlp/          synthetic corpus, hybrid classifier, evaluation (synthetic, real claims, feedback, CSV)
   breach/       Pwned Passwords k-anonymity, combolist masking, watchlist exposure
   graph/        entity graph and actor linking
-  store/        SQLite
-  api/          FastAPI backend
+  store/        SQLite or Postgres behind one interface
+  api/          FastAPI backend and rate limiter
+  ingest.py     scheduled collection with per-source status
+  notify.py     webhook and email alerts
+  export.py     CSV and STIX 2.1
   evidence.py   SHA-256 sealed evidence packs
 dashboard/      original single-page dashboard (served by the API at /)
-frontend/       React + TypeScript web app (Vite), deployed separately
+frontend/       React + TypeScript website (Vite)
+docs/           documentation
+data/           demo samples, and a place for real labelled examples
 tests/          pytest suite
 ```
 
-## Web app (frontend)
-
-A React 18 + TypeScript + Vite app in `frontend/` that talks to the API over HTTP. Pages: Overview, Alerts, a full alert report (score ring, reasons, clues, ATT&CK techniques), Connections (entity graph, shared-operator hints, campaigns), Watchlist, Check a post, and How it works (including the model's own test scores). Labels are in plain words and every page works at phone width.
+## Tests
 
 ```bash
-# terminal 1: the API
-python -m darklens serve
-# terminal 2: the web app (proxies /api to port 8000, so no CORS setup is needed)
-cd frontend
-npm install
-npm run dev        # http://localhost:5173
-npm test           # unit tests for the helpers and routing
-npm run lint && npm run build
+pip install -r requirements-dev.txt
+python -m pytest -q                         # backend; set TEST_DATABASE_URL to also run against Postgres
+cd frontend && npm ci && npm run lint && npm test && npm run build
 ```
 
-**Deploying it separately** (for example the app on Vercel and the API on Render):
-
-| Where | Setting | Value |
-| --- | --- | --- |
-| Vercel project | Root directory | `frontend` |
-| Vercel project | `VITE_API_URL` | the API address, no trailing slash |
-| API host | `ALLOWED_ORIGINS` | the web app address(es), comma separated, no trailing slash |
-
-`ALLOWED_ORIGINS` is off by default, so the API stays same-origin only until you set it. The app uses hash routes (`#/alerts`), so no rewrite rules are needed.
-
-## Live data (optional)
-
-```bash
-export ABUSECH_AUTH_KEY=...        # free key from https://auth.abuse.ch/
-python -m darklens ingest --live   # Ransomware.live + ThreatFox
-```
-
-Ransomware.live data requires attribution and non-commercial use. The base URL is configurable via `RANSOMWARE_LIVE_BASE`.
-
-## API
-
-`GET /api/stats` `GET /api/alerts` `GET /api/alerts/{id}` `GET /api/alerts/{id}/evidence` `GET /api/graph` (includes campaigns) `GET|POST /api/watchlist` `POST /api/ingest` `POST /api/analyse` `GET /api/eval` `GET|HEAD /api/health`. Interactive docs at `/docs`.
+CI runs both on every push, with a real Postgres service for the storage and API tests.
 
 ## Honest limitations
 
-- The training corpus is **synthetic**, so F1 shows the method works, not how it performs on real forum text. Real labelled data is the next step.
-- Actor linking by shared wallets is a heuristic, not proof. Shared infrastructure or a shared tutorial can create false links.
-- Rule weights are hand-tuned and the severity thresholds are not calibrated on real incidents.
-- Rules are keyword patterns, so unusual wording can still slip past them. Database-for-sale posts are covered (rule `DL-CRD-005`), but a seller who avoids words like "database", "dump", "emails" or "passwords" may score lower than deserved.
-- The database is a local SQLite file. On a free host that restarts, it resets to the demo data.
+- The training corpus is **synthetic**. Accuracy on real forum text is unmeasured, and the model sometimes gives ordinary text a ransomware label at a low score (see [docs/accuracy.md](docs/accuracy.md)).
+- Rules are keyword patterns, so unusual wording can slip past them. Rule weights are hand-tuned and severity thresholds are not calibrated on real incidents.
+- Actor linking by shared wallets is a heuristic, not proof.
+- **No accounts.** The watchlist is shared by every visitor, and the API is open (rate limited). Private workspaces are on the roadmap.
+- A claim on Ransomware.live is an accusation by criminals, not a confirmed breach.
+- Without `DATABASE_URL`, data lives in a local SQLite file that resets when a free host restarts.
 - Per-email breach search needs a paid HIBP key and is not enabled by default.
-- The Tor crawler is intentionally minimal and its allowlist ships empty.
-- No authentication on the API. Run it locally or behind your own access control.
+- The Tor crawler is intentionally minimal, its allowlist ships empty, and it is off by default.
 
 ## Roadmap
 
-DistilBERT fine-tune and comparison, URLhaus and OTX feeds, Postgres, alert export (STIX 2.1), Docker image, analyst feedback loop to retrain.
+See [docs/roadmap.md](docs/roadmap.md): what is done, what needs a person (a free Neon database, labelled data, webhooks), and what is next.
 
 ## Team
 
@@ -148,4 +157,4 @@ Bhavit Anand, Krish Anand, Prateek Tanwar, Sahil Prasad, Naisha Kohli.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Live ransomware claims: source [Ransomware.live](https://www.ransomware.live), used under its [terms](https://www.ransomware.live/t&c) (non-commercial, attribution, no re-publishing of raw data).

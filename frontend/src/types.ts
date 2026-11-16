@@ -28,6 +28,10 @@ export interface Alert {
   org: string | null;
   country: string | null;
   iocs: Iocs;
+  /** True for the synthetic sample data that ships with the project. */
+  demo: boolean;
+  /** True when the source's terms forbid re-publishing its text: the API withholds `text` and exports skip it. */
+  restricted: boolean;
 }
 
 export interface MitreTechnique {
@@ -36,12 +40,43 @@ export interface MitreTechnique {
   url: string;
 }
 
+export interface FeedbackCounts {
+  correct: number;
+  wrong: number;
+}
+
 export interface AlertDetail extends Alert {
   mitre: MitreTechnique[];
+  feedback: FeedbackCounts;
+}
+
+export interface SourceStatus {
+  source: string;
+  status: 'ok' | 'skipped' | 'error';
+  items: number;
+  note: string;
+}
+
+export interface IngestStatus {
+  last: {
+    started_at: string;
+    finished_at: string;
+    mode: 'live' | 'demo';
+    items: number;
+    alerts: number;
+    ok: boolean;
+    notified: number;
+    pruned: number;
+    sources: SourceStatus[];
+  } | null;
+  auto_ingest_minutes: number;
+  live_ready: boolean;
 }
 
 export interface Stats {
   alerts: number;
+  demo_alerts: number;
+  real_alerts: number;
   items: number;
   by_severity: Record<string, number>;
   by_category: Record<string, number>;

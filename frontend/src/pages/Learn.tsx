@@ -63,6 +63,21 @@ export default function Learn() {
           )}
         </Section>
 
+        <Section title="What happened on real data" hint="Checked on 16 November 2026 against 100 live Ransomware.live claims, using its older API. The newer free-key API may carry less text per claim, so this will be re-measured.">
+          <ul>
+            <li>All 100 were recognised as ransomware claims, because the source itself says so.</li>
+            <li>
+              The first version scored only 10 of them Medium or higher, because real descriptions are short and
+              templated. Treating "listed on a leak-site tracker" as evidence fixed that: 68 now score Medium and 32 High,
+              and none score Low.
+            </li>
+            <li>
+              The text model still sometimes gives ordinary text a ransomware label at a low score. Reviewer feedback
+              (the "Is this right?" box on each report) is how that gets measured and fixed.
+            </li>
+          </ul>
+        </Section>
+
         <Section title="Honest limits">
           <ul>
             <li>The test posts are synthetic, so real-world accuracy will be lower than these figures.</li>

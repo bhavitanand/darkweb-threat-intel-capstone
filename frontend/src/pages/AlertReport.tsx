@@ -3,7 +3,9 @@ import { api } from '../api';
 import { useAsync } from '../hooks';
 import { timeAgo } from '../lib';
 import { IocList, ProbBars, SignalList, Verdict } from '../components/parts';
-import { ErrorBox, Loading, Section } from '../components/ui';
+import FeedbackCard from '../components/FeedbackCard';
+import SourceCredit from '../components/SourceCredit';
+import { Chip, ErrorBox, Loading, Section } from '../components/ui';
 
 export default function AlertReport({ id }: { id: string }) {
   const { data: a, error, loading, slow, reload } = useAsync(() => api.alert(id), [id]);
@@ -17,6 +19,9 @@ export default function AlertReport({ id }: { id: string }) {
         <div className="stack">
           <header>
             <h1>{a.title || '(untitled post)'}</h1>
+            {a.demo && (
+              <p><Chip tone="info">Demo</Chip> <span className="muted">This is made-up sample data, not a real incident.</span></p>
+            )}
             <p className="muted">
               From {a.source}
               {a.actor ? `, posted by ${a.actor}` : ''}
@@ -50,6 +55,8 @@ export default function AlertReport({ id }: { id: string }) {
             </Section>
           </div>
 
+          <FeedbackCard key={a.item_id} id={a.item_id} category={a.category} counts={a.feedback} />
+
           <Section title="Details" hint="For analysts who want to check the work.">
             <div className="row">
               <a className="btn" href={api.evidenceUrl(a.item_id)} target="_blank" rel="noreferrer">
@@ -57,20 +64,28 @@ export default function AlertReport({ id }: { id: string }) {
               </a>
               {a.url && (
                 <a className="btn btn-ghost" href={a.url} target="_blank" rel="noreferrer noopener">
-                  <ExternalLink size={16} aria-hidden="true" /> Original source
+                  <ExternalLink size={16} aria-hidden="true" /> {a.source === 'ransomware.live' ? 'View on Ransomware.live' : 'Original source'}
                 </a>
               )}
             </div>
+            <SourceCredit alerts={[a]} />
             {Object.keys(a.probs).length > 0 && (
               <details>
                 <summary>How sure is the system about the type?</summary>
                 <ProbBars probs={a.probs} />
               </details>
             )}
-            <details>
-              <summary>Full text of the post</summary>
-              <div className="fulltext">{a.text}</div>
-            </details>
+            {a.restricted ? (
+              <p className="muted">
+                The original text is not shown here, because the source does not allow it to be re-published. Use the link above
+                to read it on the source.
+              </p>
+            ) : (
+              <details>
+                <summary>Full text of the post</summary>
+                <div className="fulltext">{a.text}</div>
+              </details>
+            )}
           </Section>
         </div>
       )}
