@@ -78,10 +78,12 @@ export function Verdict({
         <div className="hero-chips">
           <Chip tone={m.tone}>{m.label}</Chip>
           <Chip>{categoryLabel(category)}</Chip>
-          <Chip tone="info">{category === 'ioc_feed' ? `Feed confidence ${pct(confidence)}` : `${pct(confidence)} sure of the type`}</Chip>
+          {category !== 'uncertain' && (
+            <Chip tone="info">{category === 'ioc_feed' ? `Feed confidence ${pct(confidence)}` : `${pct(confidence)} sure of the type`}</Chip>
+          )}
         </div>
-        <h2>{m.verdict}</h2>
-        <p>{m.advice}</p>
+        <h2>{category === 'uncertain' ? 'Not sure' : m.verdict}</h2>
+        <p>{category === 'uncertain' ? 'DarkLens could not tell what this is and found no clear warning signs.' : m.advice}</p>
         {categoryBlurb(category) && <p className="muted">{categoryLabel(category)}: {categoryBlurb(category)}</p>}
       </div>
     </div>

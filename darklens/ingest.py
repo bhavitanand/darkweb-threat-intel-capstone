@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import notify, pipeline
-from .collectors import forums, ransomware_live, threatfox
+from .collectors import cisa_kev, forums, ransomware_live, threatfox, urlhaus
 from .models import Item, now_iso
 from .store import db
 
@@ -24,7 +24,7 @@ MIN_INTERVAL_MINUTES = 30  # Ransomware.live fair-use rule: no more than one fet
 
 
 def _collect_one(name: str, fn, live: bool) -> tuple[list[Item], dict]:
-    if live and name == "threatfox" and not os.environ.get("ABUSECH_AUTH_KEY"):
+    if live and name in ("threatfox", "urlhaus") and not os.environ.get("ABUSECH_AUTH_KEY"):
         return [], {"source": name, "status": "skipped", "items": 0, "note": "No abuse.ch key configured."}
     if live and name == "ransomware.live" and not os.environ.get(ransomware_live.KEY_ENV, "").strip():
         return [], {"source": name, "status": "skipped", "items": 0,
@@ -45,7 +45,8 @@ def run_ingest(live: bool, con=None) -> dict:
     started = now_iso()
     items: list[Item] = []
     sources: list[dict] = []
-    for name, fn in (("ransomware.live", ransomware_live.fetch), ("threatfox", threatfox.fetch), ("forums", forums.fetch)):
+    for name, fn in (("ransomware.live", ransomware_live.fetch), ("threatfox", threatfox.fetch),
+                     ("urlhaus", urlhaus.fetch), ("cisa-kev", cisa_kev.fetch), ("forums", forums.fetch)):
         got, status = _collect_one(name, fn, live)
         if not live:
             for it in got:
@@ -54,9 +55,15 @@ def run_ingest(live: bool, con=None) -> dict:
         sources.append(status)
     result = pipeline.run(offline=not live, con=con, items=items)
     pruned = 0
-    days = _retention_days()
-    if live and days:
-        pruned = db.prune(con, (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d"))
+    if live:
+        def cutoff(d: int) -> str:
+            return (datetime.now(timezone.utc) - timedelta(days=d)).strftime("%Y-%m-%d")
+
+        days, feed_days = _retention_days(), _feed_retention_days()
+        if days:
+            pruned += db.prune(con, cutoff(days), exclude_kinds=("ioc",))
+        if feed_days:  # indicators go stale fast and arrive by the thousand, so they expire sooner
+            pruned += db.prune(con, cutoff(feed_days), kinds=("ioc",))
     sent = notify.dispatch(con)
     state = {"started_at": started, "finished_at": now_iso(), "mode": "live" if live else "demo",
              "items": result["items"], "alerts": result["alerts"], "sources": sources, "notified": sent, "pruned": pruned,
@@ -75,12 +82,21 @@ def status(con=None) -> dict:
     return {"last": last, "auto_ingest_minutes": interval_minutes(), "live_ready": live_ready}
 
 
-def _retention_days() -> int:
-    """How long real items are kept (RETENTION_DAYS, default 90, 0 keeps everything)."""
+def _days_env(name: str, default: int) -> int:
     try:
-        return max(0, int(os.environ.get("RETENTION_DAYS", "90") or 0))
+        return max(0, int(os.environ.get(name, default) or 0))
     except ValueError:
-        return 90
+        return default
+
+
+def _retention_days() -> int:
+    """How long real claims and posts are kept (RETENTION_DAYS, default 90, 0 keeps everything)."""
+    return _days_env("RETENTION_DAYS", 90)
+
+
+def _feed_retention_days() -> int:
+    """How long indicator-feed entries are kept (FEED_RETENTION_DAYS, default 14, 0 keeps everything)."""
+    return _days_env("FEED_RETENTION_DAYS", 14)
 
 
 def interval_minutes() -> int:

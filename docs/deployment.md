@@ -58,7 +58,8 @@ Render's free tier sleeps after 15 minutes without traffic. Add an UptimeRobot *
 | `DATABASE_URL` | Render | Postgres connection string | SQLite file |
 | `DARKLENS_DB` | any | SQLite file path | `darklens.db` |
 | `AUTO_INGEST_MINUTES` | Render | Collect live data this often (minimum 30). `0` = off | `0` |
-| `RETENTION_DAYS` | Render | Delete real items older than this. `0` = keep | `90` |
+| `RETENTION_DAYS` | Render | Delete real claims and posts older than this. `0` = keep | `90` |
+| `FEED_RETENTION_DAYS` | Render | Delete indicator-feed entries (ThreatFox, URLhaus) older than this. `0` = keep | `14` |
 | `RANSOMWARE_LIVE_API_KEY` | Render | Enables live Ransomware.live claims. Free key from <https://my.ransomware.live>. Required by their terms | unset (skipped) |
 | `ABUSECH_AUTH_KEY` | Render | Enables ThreatFox. Free key from <https://auth.abuse.ch/> | unset (skipped) |
 | `INGEST_TOKEN` | Render | If set, `POST /api/ingest` needs header `X-Ingest-Token` | unset (open) |

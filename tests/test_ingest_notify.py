@@ -21,6 +21,8 @@ def _fake_sources(monkeypatch, rw=None, tf=None, fo=None):
     monkeypatch.setattr(ingest.ransomware_live, "fetch", rw or (lambda offline=True: []))
     monkeypatch.setattr(ingest.threatfox, "fetch", tf or (lambda offline=True: []))
     monkeypatch.setattr(ingest.forums, "fetch", fo or (lambda offline=True: []))
+    monkeypatch.setattr(ingest.cisa_kev, "fetch", lambda offline=True: [])
+    monkeypatch.setattr(ingest.urlhaus, "fetch", lambda offline=True: [])
     return boom
 
 
@@ -87,6 +89,24 @@ def test_scheduler_is_off_unless_configured(monkeypatch):
     import threading
     monkeypatch.delenv("AUTO_INGEST_MINUTES", raising=False)
     assert ingest.start_scheduler(threading.Lock()) is None
+
+
+def test_indicators_expire_sooner_than_claims(monkeypatch, con):
+    from datetime import datetime, timedelta, timezone
+    week_old = (datetime.now(timezone.utc) - timedelta(days=20)).strftime("%Y-%m-%d")
+    claim = Item(source="ransomware.live", kind="leak_claim", title="g: org", text="org was claimed", seen_at=week_old)
+    indicator = Item(source="threatfox", kind="ioc", title="Dridex domain", text="Dridex indicator: evil.example", seen_at=week_old,
+                     meta={"confidence": 80})
+    pipeline.run(items=[claim, indicator], con=con)
+    _fake_sources(monkeypatch)
+    monkeypatch.setenv("RETENTION_DAYS", "90")
+    monkeypatch.setenv("FEED_RETENTION_DAYS", "14")
+    assert ingest.run_ingest(live=True, con=con)["pruned"] == 1  # only the 20-day-old indicator
+    kinds = [r["kind"] for r in con.execute("SELECT kind FROM items")]
+    assert kinds == ["leak_claim"]
+    monkeypatch.setenv("FEED_RETENTION_DAYS", "0")  # 0 keeps feed entries forever
+    pipeline.run(items=[indicator], con=con)
+    assert ingest.run_ingest(live=True, con=con)["pruned"] == 0
 
 
 def test_live_run_prunes_old_real_data(monkeypatch, con):

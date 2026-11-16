@@ -6,6 +6,8 @@
 | --- | --- | --- | --- |
 | [Ransomware.live](https://www.ransomware.live) | Public claims that a named organisation was hit by a ransomware group, with the group, country, sector and website | **Yes, free.** Get one at <https://my.ransomware.live>, set `RANSOMWARE_LIVE_API_KEY` | [Terms & Conditions](https://www.ransomware.live/t&c): non-commercial use with a linked attribution, 30-minute cache, **no re-serving or publishing of the raw data** (see below) |
 | [ThreatFox](https://threatfox.abuse.ch) (abuse.ch) | Malicious indicators (IPs, domains, hashes) with a confidence value | Free `ABUSECH_AUTH_KEY` from <https://auth.abuse.ch/> | Free under abuse.ch fair-use principles for non-commercial use. Commercial use may need their paid API. IOCs older than six months are expired |
+| [URLhaus](https://urlhaus.abuse.ch) (abuse.ch) | Web addresses recently serving malware. Only the address list is read; samples are never downloaded | The same free `ABUSECH_AUTH_KEY` as ThreatFox | Free under abuse.ch fair-use principles for non-commercial use |
+| [CISA Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | Software flaws that CISA says attackers are exploiting, with whether ransomware groups use them. Only entries added in the last 45 days are collected | No | US government data. Credit it: "Source: CISA Known Exploited Vulnerabilities Catalog" |
 | Forum posts | Short text snippets | No | Live collection needs the allowlisted Tor crawler, which ships disabled (see [SECURITY.md](../SECURITY.md)) |
 | Demo samples | Made-up posts and claims in `data/samples/` | No | Fictional. Labelled with a Demo badge |
 
@@ -48,6 +50,8 @@ This is our reading of the terms, not legal advice. The owner can grant exceptio
 
 Ransomware.live claims name real organisations. The names are already public on the source; DarkLens repeats them with attribution to help people check whether they are affected. A claim is an accusation by criminals, not a confirmed breach. If you are a named organisation and want an entry removed from DarkLens, open a "takedown" issue; the source's own removal process is in section 9 of its terms.
 
+**How each kind of item is scored.** A lone indicator (ThreatFox, URLhaus) and an exploited flaw (CISA) are real evidence, but about the internet and about a product, not about you, so on their own they rate Low. A flaw that ransomware groups use rates Medium. If an item mentions your watched domain or email it becomes a High or Critical alert.
+
 ## Retention
 
-Real items older than `RETENTION_DAYS` (default 90, `0` keeps everything) are deleted after each live collection. Demo items, and any item a reviewer has given feedback on (because it is labelled data), are kept.
+Real claims and posts older than `RETENTION_DAYS` (default 90) are deleted after each live collection. Indicator-feed entries expire sooner, after `FEED_RETENTION_DAYS` (default 14), because they go stale quickly and arrive by the thousand, which would otherwise fill a free database. `0` keeps everything. Demo items, and any item a reviewer has given feedback on (because it is labelled data), are always kept.

@@ -27,7 +27,7 @@ from .ratelimit import RateLimitMiddleware
 DASH = Path(__file__).resolve().parents[2] / "dashboard" / "index.html"
 app = FastAPI(title="DarkLens", version=__version__)
 _lock = threading.Lock()
-LABELS = set(CATEGORIES) | {"ioc_feed"}
+LABELS = set(CATEGORIES) | {"ioc_feed", "known_exploited", "uncertain"}
 
 _DOMAIN = re.compile(r"^([a-z0-9-]+\.)+[a-z]{2,}$")
 _EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")

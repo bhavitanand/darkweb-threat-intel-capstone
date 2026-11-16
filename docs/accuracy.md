@@ -29,14 +29,22 @@ What went wrong first: real claim descriptions are short and templated ("...a ve
 
 Be careful reading the "100 / 100": recognising the category is partly true by construction now (the source decides it). The meaningful result is the score distribution, and whether reviewers agree with it.
 
-## 3. Known weaknesses
+## 3. The "not sure" outcome
 
-- **Ordinary text can get a ransomware label.** The text model sometimes labels harmless text "ransomware leak" with about 30% confidence. The score stays Low and no alert is raised, but the label on a Low alert can be misleading. Cause: the model was trained only on synthetic data.
+The text model labelled almost every ordinary sentence as a threat type, but with low confidence. On 23 everyday sentences (a picnic, a meeting reminder, a recipe) it guessed a threat type at 19 to 39% confidence in 18 cases. So when the model is the **only** evidence and its confidence is below **40%**, DarkLens now says **"Not sure"** and raises no alert. The 40% cut was chosen from data: on the 350 synthetic test samples it removes 26 wrong labels for 17 right ones among classifier-only guesses.
+
+What it does not touch: anything backed by a detection rule, a watchlist mention, leaked credentials, or a source that states the category (a leak-site tracker). A post that mentions your watched domain but looks like nothing in particular still alerts, labelled "Not sure" rather than a threat type.
+
+Still imperfect: the cut is on confidence, and the model is sometimes confidently wrong. One everyday sentence ("The server maintenance window is Sunday 2am to 4am") still gets a ransomware label at 59%. The real fix is retraining on real labelled data (see below).
+
+## 4. Known weaknesses
+
+- **Confidently wrong labels remain possible.** Ordinary text at 40% confidence or higher can still receive a threat label, usually with a Low score. Cause: the model was trained only on synthetic data.
 - **Keyword rules miss unusual wording.** For example a database sale that avoids the words "database", "dump", "emails" and "passwords". Database-for-sale posts are covered by rule `DL-CRD-005`, with tests for look-alikes that must stay Low.
 - **Threat chatter is the weakest class** in the synthetic evaluation.
 - **No measurement on forum and market posts.** There is no real labelled set for them.
 
-## 4. How to measure properly (and how you can help)
+## 5. How to measure properly (and how you can help)
 
 ### Reviewer feedback in the website
 

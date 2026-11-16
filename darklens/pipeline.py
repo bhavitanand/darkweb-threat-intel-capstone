@@ -20,6 +20,11 @@ CATEGORY_BASE = {
 }
 
 
+# Below this confidence a classifier-only guess is reported as "uncertain". Chosen from data, not by feel: ordinary
+# sentences scored 0.19-0.39, and on the synthetic test set the cut removes 26 wrong labels for 17 right ones.
+UNCERTAIN_BELOW = 0.4
+
+
 @dataclass
 class Analysis:
     category: str
@@ -63,8 +68,20 @@ def analyse(item: Item, watch_domains: list[str] | None = None, watch_emails: li
         sig += _watchlist_signals(f"{item.title}. {item.text}".lower(), iocs, watch_domains, watch_emails)
         score, sev = combine(sig)
         return Analysis("ioc_feed", c / 100, {}, sig, score, sev, iocs, [])
+    if item.kind == "advisory":
+        # A vulnerability the CISA catalogue says is being exploited. Real evidence, but about a product rather than
+        # about you, so on its own it stays Low (60) or Medium when ransomware groups use it (80). Prose analysis
+        # would only add noise, so the text model is skipped, as for indicators.
+        ransomware = bool(item.meta.get("ransomware"))
+        sig = [Signal("Exploited in the wild", 80 if ransomware else 60,
+                      "CISA lists this flaw as exploited in real attacks" + (" and used by ransomware groups." if ransomware else "."),
+                      item.meta.get("cve", ""))]
+        sig += _watchlist_signals(f"{item.title}. {item.text}".lower(), iocs, watch_domains, watch_emails)
+        score, sev = combine(sig)
+        return Analysis("known_exploited", 0.95, {}, sig, score, sev, iocs, [])
     category, conf, probs = clf.classify(text)
     signals: list[Signal] = [s for _, s in run_rules(text)]
+    rule_hits = len(signals)
 
     if item.kind == "leak_claim":
         # The source itself says this organisation was claimed by a ransomware group: that is evidence a text
@@ -73,18 +90,30 @@ def analyse(item: Item, watch_domains: list[str] | None = None, watch_emails: li
         signals.append(Signal("Listed on a leak-site tracker", 75,
                               f"{item.source} lists this organisation as a ransomware victim.", item.actor))
 
-    if category != "benign":
-        signals.append(Signal("Classifier", int(CATEGORY_BASE[category] * conf), f"Text looks like '{category}' (confidence {conf:.0%}).", category))
-
     # Watchlist: the highest-value signal, because it turns generic intel into "this is about us".
     exposures = credential_exposure(item.text, watch_domains)
-    signals += _watchlist_signals(text.lower(), iocs, watch_domains, watch_emails)
+    watch = _watchlist_signals(text.lower(), iocs, watch_domains, watch_emails)
+
+    # Admit uncertainty. When the text model is the ONLY evidence and it is not confident, say "not sure" instead of
+    # attaching a threat label to what is most likely ordinary text (on everyday sentences it guessed a threat type
+    # at 19-39% confidence). Anything backed by a rule, the watchlist, or leaked credentials is unaffected.
+    weak_guess = (item.kind != "leak_claim" and category not in ("benign", "uncertain") and conf < UNCERTAIN_BELOW
+                  and rule_hits == 0)
+    if weak_guess and not watch and not exposures:
+        return Analysis("uncertain", conf, probs, [], 0, "low", iocs, exposures)
+    if weak_guess:
+        # It mentions something of yours, so it still raises an alert, but we do not know what kind of post it is.
+        # Do not pin a threat label on it, and do not let the weak guess add to the score.
+        category = "uncertain"
+    elif category != "benign":
+        signals.append(Signal("Classifier", int(CATEGORY_BASE[category] * conf), f"Text looks like '{category}' (confidence {conf:.0%}).", category))
+    signals += watch
     if exposures:
         signals.append(Signal("Credentials for watched domain", 95,
                               f"{len(exposures)} email:password pairs for your domains appear in this item.",
                               exposures[0]["email"], full=True))
     # Payment address next to a non-benign category: monetisation marker.
-    if category != "benign" and any(t in iocs for t in ("btc", "eth", "xmr", "trx")):
+    if category not in ("benign", "uncertain") and any(t in iocs for t in ("btc", "eth", "xmr", "trx")):
         signals.append(Signal("Payment address present", 30, "A crypto address is attached, so this is a monetised offer.", ""))
     if category == "benign" and not signals:
         return Analysis(category, conf, probs, [], 0, "low", iocs, exposures)
@@ -120,6 +149,8 @@ def run(offline: bool = True, con=None, items: list[Item] | None = None) -> dict
         if a.score > 0:
             db.upsert_alert(con, it.id, a.category, a.confidence, a.score, a.severity, a.signals, a.probs, now_iso())
             n_alerts += 1
+        else:
+            db.alert_delete(con, it.id)  # no longer an alert (for example, now "uncertain"): remove a stale one
     con.commit()
     return {"items": len(items), "alerts": n_alerts}
 

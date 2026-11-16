@@ -7,6 +7,7 @@ TECHNIQUES = {
     "phishing_kit": [("T1566", "Phishing"), ("T1111", "Multi-Factor Authentication Interception")],
     "malware_sale": [("T1588.001", "Obtain Capabilities: Malware"), ("T1562.001", "Impair Defenses: Disable or Modify Tools")],
     "carding_fraud": [("T1657", "Financial Theft")],
+    "known_exploited": [("T1190", "Exploit Public-Facing Application")],
     "threat_chatter": [("T1498", "Network Denial of Service"), ("T1491", "Defacement")],
 }
 

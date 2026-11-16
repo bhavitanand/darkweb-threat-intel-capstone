@@ -50,6 +50,72 @@ def test_a_watchlist_hit_on_a_real_claim_outranks_a_plain_claim():
     assert about_us.score > plain.score and about_us.severity == "critical"
 
 
+# ---- "uncertain": the model must not attach a threat label to ordinary text ----
+
+ORDINARY = [
+    "Company picnic photos from Friday afternoon, everyone had a great time at the lake", "lunch menu",
+    "Team meeting moved to 3pm tomorrow, please update your calendar", "Our quarterly report is attached for your review",
+    "Happy birthday to Sarah from accounting!", "The new office coffee machine is finally installed on the second floor",
+    "Reminder: the fire drill is on Thursday morning", "Thanks for the quick reply, I will send the invoice today",
+    "Weekend football scores and highlights from last night", "Recipe: easy paneer butter masala in 20 minutes",
+    "Flight delayed by two hours, will land around 9pm", "Security awareness training starts next week, please attend",
+    "Our website was down for ten minutes this morning, now restored", "Great talk at the conference about secure coding",
+]
+
+
+@pytest.mark.parametrize("text", ORDINARY)
+def test_ordinary_text_is_not_given_a_threat_label(text):
+    a = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), [], [], get_classifier())
+    assert a.category in ("benign", "uncertain") and a.score == 0 and a.signals == []
+
+
+def test_uncertain_is_reported_with_its_confidence():
+    a = pipeline.analyse(Item(source="forum", kind="post", title="", text="lunch menu"), [], [], get_classifier())
+    assert a.category == "uncertain" and 0 < a.confidence < pipeline.UNCERTAIN_BELOW
+
+
+@pytest.mark.parametrize("text", [
+    "The deadline is two days away, the countdown has started and the data will be published",
+    "Selling 0day RCE for Exchange, price 2 XMR",
+    "Fresh database dump with 3 million emails and passwords for sale",
+])
+def test_anything_backed_by_a_rule_is_never_made_uncertain(text):
+    from darklens.rules.engine import run_rules
+    assert run_rules(text)
+    a = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), [], [], get_classifier())
+    assert a.category != "uncertain" and a.score > 0
+
+
+def test_a_watchlist_mention_still_alerts_but_is_not_given_a_threat_label():
+    """We do not know what kind of post it is, but it mentions something of yours, so it must still alert."""
+    text = "Happy birthday to Sarah from accounting, see acme.example"
+    plain = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), [], [], get_classifier())
+    mine = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), ["acme.example"], [], get_classifier())
+    assert plain.category == "uncertain" and plain.score == 0
+    assert mine.category == "uncertain" and mine.severity == "critical"
+    assert [s.name for s in mine.signals] == ["Watchlist domain match"]  # the weak guess adds nothing
+
+
+def test_the_threshold_is_what_decides(monkeypatch):
+    text = "Company picnic photos from Friday afternoon, everyone had a great time at the lake"
+    item = Item(source="forum", kind="post", title="", text=text)
+    monkeypatch.setattr(pipeline, "UNCERTAIN_BELOW", 0.0)
+    assert pipeline.analyse(item, [], [], get_classifier()).category == "ransomware_leak"  # the old behaviour
+    monkeypatch.setattr(pipeline, "UNCERTAIN_BELOW", 0.4)
+    assert pipeline.analyse(item, [], [], get_classifier()).category == "uncertain"
+
+
+def test_an_item_that_becomes_uncertain_loses_its_stale_alert(tmp_path):
+    from darklens.store import db
+    con = db.connect(tmp_path / "u.db")
+    it = Item(source="forum", kind="post", title="", text="Company picnic photos from Friday afternoon at the lake")
+    db.upsert_item(con, it)
+    db.upsert_alert(con, it.id, "ransomware_leak", 0.3, 9, "low", [], {}, "t")
+    con.commit()
+    pipeline.run(items=[it], con=con)
+    assert con.execute("SELECT COUNT(*) c FROM alerts").fetchone()["c"] == 0
+
+
 # ---- indicator feed (ThreatFox) ----
 
 def ioc(text="Dridex indicator (botnet_cc): evil.example confidence 100", confidence=100):

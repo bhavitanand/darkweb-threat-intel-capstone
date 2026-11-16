@@ -16,6 +16,12 @@ All notable changes. Dates are when the change was made.
 - **Rule `DL-CRD-005`** (database offered for sale) with edge-case tests.
 - Documentation (`docs/`), CI workflow, Dependabot, issue and pull request templates.
 
+### Added (after launch)
+- **"Not sure" outcome:** when the text model is the only evidence and is under 40% confident, DarkLens no longer attaches a threat label to what is most likely ordinary text. Rule hits, watchlist mentions, leaked credentials and tracker-sourced claims are unaffected.
+- **CISA Known Exploited Vulnerabilities** feed (no key) and **URLhaus** malware-link feed (same free abuse.ch key). Both rate Low unless they mention your watchlist; a flaw used by ransomware groups rates Medium.
+- Indicator-feed entries now expire after `FEED_RETENTION_DAYS` (default 14), so thousands a day cannot fill a free database.
+- Tests can no longer reach the internet or the real on-disk feed cache.
+
 ### Changed
 - **Found by switching on real data:** ThreatFox adds over a thousand indicators a day. A lone indicator is now capped at Low (it flooded the site with Medium alerts), a listed indicator that mentions your watchlist is now a High or Critical alert (feed items previously ignored the watchlist), the connection map leaves indicator-feed entries out and caps itself at 300 alerts, its layout work is bounded so it cannot freeze a browser, and the Alerts page shows 100 at a time.
 - **Ransomware.live terms compliance.** Live collection uses the free PRO API (`RANSOMWARE_LIVE_API_KEY`, sent as `X-API-KEY`) and is skipped without a key. Its claims are shown with a linked attribution, the API never returns their raw text, and they are left out of CSV, STIX and feedback exports. See `docs/data-sources.md`.

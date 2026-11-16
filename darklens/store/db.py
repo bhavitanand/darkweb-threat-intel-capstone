@@ -190,12 +190,20 @@ def alert_delete(con, item_id: str) -> None:
     con.execute("DELETE FROM alerts WHERE item_id=?", (item_id,))
 
 
-def prune(con, before: str) -> int:
+def prune(con, before: str, kinds: tuple = (), exclude_kinds: tuple = ()) -> int:
     """Delete real (non-demo) items last seen before `before` (YYYY-MM-DD) with their alerts and indicators.
-    Items an analyst has given feedback on are kept, because they are labelled training data."""
-    ids = [r["id"] for r in con.execute(
-        "SELECT id FROM items WHERE seen_at <> '' AND seen_at < ? AND meta NOT LIKE '%\"demo\"%' "
-        "AND id NOT IN (SELECT item_id FROM feedback)", (before,))]
+    `kinds` limits it to those item kinds, `exclude_kinds` skips them (so indicator feeds can expire sooner than
+    claims and posts). Items an analyst has given feedback on are kept, because they are labelled training data."""
+    sql = ("SELECT id FROM items WHERE seen_at <> '' AND seen_at < ? AND meta NOT LIKE '%\"demo\"%' "
+           "AND id NOT IN (SELECT item_id FROM feedback)")
+    args: list = [before]
+    if kinds:
+        sql += f" AND kind IN ({','.join('?' * len(kinds))})"
+        args += list(kinds)
+    if exclude_kinds:
+        sql += f" AND kind NOT IN ({','.join('?' * len(exclude_kinds))})"
+        args += list(exclude_kinds)
+    ids = [r["id"] for r in con.execute(sql, tuple(args))]
     for i in ids:
         for table, col in (("alerts", "item_id"), ("iocs", "item_id"), ("items", "id")):
             con.execute(f"DELETE FROM {table} WHERE {col}=?", (i,))

@@ -6,6 +6,8 @@ import { Chip, ErrorBox, Loading, Section } from './ui';
 const SOURCE_NAMES: Record<string, string> = {
   'ransomware.live': 'Ransomware.live (ransomware victim claims, needs a free key)',
   threatfox: 'ThreatFox by abuse.ch (malicious indicators)',
+  'cisa-kev': 'CISA Known Exploited Vulnerabilities (software flaws)',
+  urlhaus: 'URLhaus by abuse.ch (malware download links)',
   forums: 'Forum posts',
 };
 

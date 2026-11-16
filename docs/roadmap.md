@@ -30,9 +30,9 @@ Honest status of what exists, what comes next, and what depends on people rather
 
 ## Next (engineering, about 1 to 3 weeks)
 
-1. **Make the classifier admit uncertainty.** Add an "uncertain" outcome so harmless text is never labelled "ransomware leak" at low confidence (a known weakness, see [accuracy](accuracy.md)).
+1. ~~Make the classifier admit uncertainty~~ **Done** (see [accuracy](accuracy.md)). Confidently wrong labels remain until the model is retrained on real data.
 2. **Retrain on real labelled data** once it exists, publish real macro-F1, and recalibrate severity thresholds using reviewer feedback.
-3. **More free public sources:** CISA Known Exploited Vulnerabilities, URLhaus, AlienVault OTX.
+3. ~~CISA Known Exploited Vulnerabilities and URLhaus~~ **Done.** Next sources: AlienVault OTX (needs its own free key). **Watch your software**, not only domains: let the watchlist hold vendor and product names so an exploited flaw in a product you run becomes a High alert instead of a Low one. This is what would make the CISA feed truly personal.
 4. **Observability:** structured logs, error tracking (a free Sentry plan), and a public status line.
 5. **Pagination and server-side filtering** in the alerts API and website, so thousands of alerts stay fast.
 6. **Daily or weekly email digest** of what changed.

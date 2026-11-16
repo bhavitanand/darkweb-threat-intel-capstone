@@ -68,6 +68,14 @@ export const CATEGORY_META: Record<string, { label: string; blurb: string }> = {
     label: 'Threat chatter',
     blurb: 'Talk about planning or boasting about attacks, without a concrete offer.',
   },
+  known_exploited: {
+    label: 'Exploited software flaw',
+    blurb: 'A software flaw that the US cyber agency CISA says attackers are using in real attacks right now. Check whether you run the affected product.',
+  },
+  uncertain: {
+    label: 'Not sure',
+    blurb: 'DarkLens could not tell what this is, and found no clear warning signs. That is not proof it is harmless.',
+  },
   ioc_feed: {
     label: 'Known bad indicator',
     blurb: 'An address, file or website that a public threat feed has already flagged as malicious.',

@@ -7,7 +7,7 @@
 
 **Live site: <https://darklens-seven.vercel.app>** · API docs: <https://darklens-capstone.onrender.com/docs> · [Documentation](#documentation)
 
-DarkLens watches public sources where criminals boast, sell and extort (today: live ransomware victim claims from Ransomware.live), scores every item from 0 to 100, and tells you **why** in plain words. Add your own domains and emails and anything that mentions them jumps to the top. It can also message you when that happens.
+DarkLens watches public sources where criminals boast, sell and extort (today: live ransomware victim claims, malicious indicators and links, and the vulnerabilities CISA says are being exploited), scores every item from 0 to 100, and tells you **why** in plain words. Add your own domains and emails and anything that mentions them jumps to the top. It can also message you when that happens.
 
 > Built as a Samsung Innovation Campus capstone (Batch A5). Defensive research only, see [SECURITY.md](SECURITY.md).
 

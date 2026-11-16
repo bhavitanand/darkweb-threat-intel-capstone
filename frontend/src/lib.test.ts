@@ -15,6 +15,7 @@ describe('labels', () => {
     expect(categoryLabel('credential_dump')).toBe('Stolen logins');
     expect(categoryLabel('new_thing')).toBe('New thing');
     expect(categoryLabel('ioc_feed')).toBe('Known bad indicator');
+    expect(categoryLabel('uncertain')).toBe('Not sure');
   });
   it('falls back to low for an unknown severity', () => {
     expect(severityMeta('weird').label).toBe('Low');

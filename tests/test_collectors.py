@@ -79,6 +79,129 @@ def test_ingest_skips_ransomware_live_without_a_key_and_says_why(monkeypatch, tm
     assert by["ransomware.live"]["status"] == "skipped" and "API key" in by["ransomware.live"]["note"]
 
 
+# ---- CISA Known Exploited Vulnerabilities ----
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from darklens import pipeline  # noqa: E402
+from darklens.collectors import cisa_kev as kev  # noqa: E402
+from darklens.collectors import urlhaus as uh  # noqa: E402
+from darklens.nlp.classifier import get_classifier  # noqa: E402
+
+
+def kev_entry(cve="CVE-2026-100001", days_ago=1, ransomware="Unknown", **kw):
+    added = (datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+    e = {"cveID": cve, "vendorProject": "Acme", "product": "Gateway", "vulnerabilityName": "Acme Gateway RCE",
+         "dateAdded": added, "shortDescription": "Allows remote code execution.", "knownRansomwareCampaignUse": ransomware}
+    e.update(kw)
+    return e
+
+
+def test_kev_offline_is_empty_and_needs_no_key():
+    assert kev.fetch(offline=True) == []
+
+
+def test_kev_keeps_only_recent_entries_newest_first_and_caps(monkeypatch):
+    feed = {"vulnerabilities": [kev_entry("CVE-OLD", days_ago=400), kev_entry("CVE-A", 3), kev_entry("CVE-B", 1), kev_entry("CVE-C", 10)]}
+    monkeypatch.setattr(kev, "cached_get", lambda url, **kw: feed)
+    assert [i.meta["cve"] for i in kev.fetch(offline=False)] == ["CVE-B", "CVE-A", "CVE-C"]
+    assert len(kev.fetch(offline=False, limit=2)) == 2 and len(kev.fetch(offline=False, days=5)) == 2
+
+
+def test_kev_item_shape_and_ransomware_flag():
+    it = kev._to_item(kev_entry(ransomware="Known"))
+    assert it.kind == "advisory" and it.source == "cisa-kev" and it.title == "CVE-2026-100001: Acme Gateway"
+    assert it.url == "https://nvd.nist.gov/vuln/detail/CVE-2026-100001" and it.meta["ransomware"] is True
+    assert "Known ransomware use: yes" in it.text and kev._to_item(kev_entry()).meta["ransomware"] is False
+
+
+@pytest.mark.parametrize("bad", [None, [], "x", {"vulnerabilities": "nope"}, {"other": 1}])
+def test_kev_rejects_an_unexpected_answer(monkeypatch, bad):
+    monkeypatch.setattr(kev, "cached_get", lambda url, **kw: bad)
+    with pytest.raises(RuntimeError, match="Unexpected"):
+        kev.fetch(offline=False)
+
+
+def test_kev_skips_junk_entries(monkeypatch):
+    monkeypatch.setattr(kev, "cached_get", lambda url, **kw: {"vulnerabilities": [kev_entry(), "junk", None, {"dateAdded": "2999-01-01"}]})
+    assert len(kev.fetch(offline=False)) == 1  # an entry with no cveID is dropped
+
+
+def test_an_exploited_flaw_is_low_but_a_ransomware_one_is_medium_and_a_watched_name_is_a_real_alert():
+    clf = get_classifier()
+    plain = pipeline.analyse(kev._to_item(kev_entry()), [], [], clf)
+    ransom = pipeline.analyse(kev._to_item(kev_entry(ransomware="Known")), [], [], clf)
+    assert plain.category == "known_exploited" and plain.severity == "low"
+    assert ransom.severity == "medium" and ransom.score > plain.score
+    assert [s.name for s in plain.signals] == ["Exploited in the wild"] and "cve" in plain.iocs
+    watched = pipeline.analyse(kev._to_item(kev_entry(vendorProject="Acme", shortDescription="See acme.example")), ["acme.example"], [], clf)
+    assert watched.severity in ("high", "critical")
+
+
+# ---- URLhaus ----
+
+UH_ROW = {"id": "1", "urlhaus_reference": "https://urlhaus.abuse.ch/url/1/", "url": "http://203.0.113.9/a/b.exe", "url_status": "online",
+          "host": "203.0.113.9", "date_added": "2026-11-15 09:02:05 UTC", "threat": "malware_download", "tags": ["elf", "mirai"]}
+
+
+def test_urlhaus_offline_is_empty_and_live_needs_a_key(monkeypatch):
+    assert uh.fetch(offline=True) == []
+    monkeypatch.delenv("ABUSECH_AUTH_KEY", raising=False)
+    with pytest.raises(uh.MissingKey):
+        uh.fetch(offline=False)
+
+
+def test_urlhaus_parses_the_documented_response_and_keeps_status_out_of_the_id():
+    online = uh.parse({"query_status": "ok", "urls": [UH_ROW]})[0]
+    offline = uh.parse({"query_status": "ok", "urls": [{**UH_ROW, "url_status": "offline"}]})[0]
+    assert online.kind == "ioc" and online.title == "URLhaus elf download link" and online.seen_at == "2026-11-15"
+    assert online.url == UH_ROW["urlhaus_reference"] and "203.0.113.9" in online.text
+    assert online.meta["confidence"] == 80 and offline.meta["confidence"] == 40
+    assert online.id == offline.id  # the same address does not become a new item when its status flips
+
+
+@pytest.mark.parametrize("body,expected", [
+    ({"query_status": "no_results"}, 0), ({"query_status": "ok"}, 0), ({"query_status": "ok", "urls": "x"}, 0),
+    ({"query_status": "ok", "urls": [UH_ROW, {"id": "2"}, "junk", None]}, 1),
+    ({"query_status": "ok", "urls": [{**UH_ROW, "tags": None}]}, 1),
+])
+def test_urlhaus_tolerates_every_shape(body, expected):
+    assert len(uh.parse(body)) == expected
+
+
+@pytest.mark.parametrize("status", ["http_get_expected", None, "weird"])
+def test_urlhaus_errors_are_raised(status):
+    with pytest.raises(RuntimeError, match="URLhaus answered"):
+        uh.parse({"query_status": status})
+
+
+def test_urlhaus_live_sends_the_key_and_clamps_the_limit(monkeypatch):
+    import requests
+    seen = {}
+
+    class Reply:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"query_status": "ok", "urls": [UH_ROW]}
+
+    monkeypatch.setattr(requests, "get", lambda url, headers=None, timeout=0: seen.update(url=url, headers=headers) or Reply())
+    monkeypatch.setenv("ABUSECH_AUTH_KEY", "k")
+    assert len(uh.fetch(offline=False, limit=99999)) == 1
+    assert seen["url"].endswith("/v1/urls/recent/limit/1000/") and seen["headers"]["Auth-Key"] == "k"
+    uh.fetch(offline=False, limit=0)
+    assert seen["url"].endswith("/limit/1/")
+
+
+def test_a_lone_malware_link_stays_low_but_your_own_domain_in_one_is_an_alert():
+    clf = get_classifier()
+    row = {**UH_ROW, "url": "http://acme.example/wp/shell.php", "host": "acme.example"}
+    item = uh.parse({"query_status": "ok", "urls": [row]})[0]
+    assert pipeline.analyse(item, [], [], clf).severity == "low"
+    assert pipeline.analyse(item, ["acme.example"], [], clf).severity in ("high", "critical")
+
+
 # ---- ThreatFox ----
 
 OK_ROW = {"id": "41", "ioc": "gaga.com", "threat_type": "botnet_cc", "ioc_type": "domain", "malware": "win.dridex",

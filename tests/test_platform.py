@@ -142,7 +142,7 @@ def test_ingest_requires_the_token_when_configured(monkeypatch):
 def test_ingest_status_reports_the_last_run(client):
     st = client.get("/api/ingest/status").json()
     assert st["last"]["mode"] == "demo" and st["live_ready"] is False
-    assert {s["source"] for s in st["last"]["sources"]} == {"ransomware.live", "threatfox", "forums"}
+    assert {s["source"] for s in st["last"]["sources"]} == {"ransomware.live", "threatfox", "urlhaus", "cisa-kev", "forums"}
 
 
 # ---- feedback loop ----
