@@ -20,7 +20,7 @@ All notable changes. Dates are when the change was made.
 - On 234 real ordinary news items, alerts on ordinary text fell from 32% to 2.6% (Medium or higher: 3.0% to 0.9%), with real-threat detection held at 11 of 12 (provisional: machine-assisted labels, tuned on the same items).
 - Rules `DL-EXP-001`, `DL-EXP-003` and `DL-FRD-001` now need sale wording (they fired on "zero-day" patch news, "initial access" incident reports and "rubbish dumps"); a weak `DL-EXP-004` keeps bare zero-day mentions. New rules `DL-CRD-006` (breach reports) and `DL-RAN-006` (extortion-group claims).
 - The "Not sure" cut rose from 40% to 60% confidence. The hybrid's rule boost, previously an untuned 1.5, is now a measured 8 (synthetic hybrid macro-F1 0.836 to 0.890, chosen on the synthetic test set).
-- `label pack|import|agree` bring in extra independent labellers (models or people) and report agreement: three machine labellers reached Fleiss kappa 0.828 on the 300 items (272 agreed, 28 contested); still no human validation.
+- `label pack|import|agree` bring in extra independent labellers (models or people) and report agreement: four machine labellers reached Fleiss kappa 0.850 on the 300 items (271 agreed, 29 contested); still no human validation.
 - `label validate make|check` compares machine-assisted labels with a human sample; `label sheets --since DATE` carves out an untouched test set by fetch date; evaluation files may contain `skip` rows (not scored).
 - Fixed: feeds declared as Windows-1252 were decoded as UTF-8, turning apostrophes into replacement characters.
 

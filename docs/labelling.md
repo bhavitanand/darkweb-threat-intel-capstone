@@ -52,7 +52,7 @@ Examples of `skip`: "Attackers exploit a flaw in a chat server", "Researchers an
 
 ## Machine-assisted labels, and checking them
 
-With five busy people, the first set of labels for the 300 collected items was produced by three AI language models (two Claude passes and one ChatGPT pass) working independently of each other and of DarkLens's own model, using the policy above. These are **silver labels**: useful for finding problems quickly, but not ground truth. The extra labellers are added with:
+With five busy people, the first set of labels for the 300 collected items was produced by four AI labellers (two Claude passes, one ChatGPT pass and one Gemini pass) working independently of each other and of DarkLens's own model, using the policy above. These are **silver labels**: useful for finding problems quickly, but not ground truth. The extra labellers are added with:
 
 ```
 python -m darklens label pack --size 25              # copy-paste batches for another model, in labelling/pack/

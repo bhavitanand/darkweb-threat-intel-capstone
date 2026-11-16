@@ -48,7 +48,7 @@ Still imperfect: the cut is on confidence, and the model is sometimes confidentl
 
 **What was measured.** 300 real items collected from public security-news and general-news feeds (headlines and short summaries). Of these: **234 ordinary (benign)**, **54 attack or exploitation news that fits none of the eight classes** (set aside as "skip", not scored), and **12 real threats** (5 ransomware or extortion, 6 breach reports, 1 phishing kit). The whole product was scored (`eval --csv ... --pipeline`), not just the text model.
 
-**How the labels were made.** Three AI language models labelled all 300 items independently of the DarkLens model and of each other, following the written policy in [labelling.md](labelling.md): two Claude passes (the second from a fresh agent with no sight of the first) and one ChatGPT pass. These are **machine ("silver") labels, not human ones.** A 50-item validation sheet for a human is prepared (`label validate make`), and until a person has checked a sample, the figures below should be read as provisional. One mechanical numbering slip in the first pass (one item shifted) was found by comparison and corrected.
+**How the labels were made.** Four AI labellers labelled all 300 items independently of the DarkLens model and of each other, following the written policy in [labelling.md](labelling.md): two Claude passes (the second from a fresh agent with no sight of the first), one ChatGPT pass and one Gemini pass (Gemini Hydrogen, thinking level High; ChatGPT with its Think mode on for the later batches). These are **machine ("silver") labels, not human ones.** A 50-item validation sheet for a human is prepared (`label validate make`), and until a person has checked a sample, the figures below should be read as provisional. One mechanical numbering slip in the first pass (one item shifted) was found by comparison and corrected.
 
 | Labeller pair | Agreement, all 300 | Agreement, items nobody skipped |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ Still imperfect: the cut is on confidence, and the model is sometimes confidentl
 | ChatGPT and Claude pass 1 | 92% (kappa 0.788) | 99% (228) |
 | ChatGPT and Claude pass 2 | 91% (kappa 0.776) | 99% (230) |
 
-All three together: Fleiss kappa **0.828**; all three agree on 272 items and 28 are contested. Almost every split is the benign-versus-skip boundary (ChatGPT skips more). Six contested items are about real threats (for example a breach by an exploited flaw, an incident-response trends report, an essay on ransom notes) and need a human tie-break. The figures in the tables below were measured on the earlier two-pass agreed set; re-scoring on the three-way agreed set (226 scorable items: 215 benign, 5 ransomware, 6 credential dump) gave 0.9% false alarms at any level and none at Medium or higher, about 9% of real threats missed (1 of 11) and 4 of 11 detected with the wrong type, with only benign having enough examples to score.
+Gemini agrees with each of the other three on 95% of all 300 (kappa 0.87), and with ChatGPT on all 229 items neither skipped. All four together: Fleiss kappa **0.850**; all four agree on 271 items and 29 are contested. Almost every split is the benign-versus-skip boundary (ChatGPT skips more). Six contested items are about real threats (for example a breach by an exploited flaw, an incident-response trends report, an essay on ransom notes) and need a human tie-break. The figures in the tables below were measured on the earlier two-pass agreed set; re-scoring on the agreed set (the same 226 scorable items under three or four labellers) (226 scorable items: 215 benign, 5 ransomware, 6 credential dump) gave 0.9% false alarms at any level and none at Medium or higher, about 9% of real threats missed (1 of 11) and 4 of 11 detected with the wrong type, with only benign having enough examples to score.
 
 ### What the real news revealed, and what changed
 
@@ -76,7 +76,7 @@ What was found and fixed:
 ### Read these numbers with care
 
 - **The 300 items were used to find the problems**, so the 2.6% and 0.9% are optimistic. The honest test is items collected *later* (`label sheets --since DATE` selects only items first seen after a date), and that has not been run yet.
-- **The labels are machine-made** (three models, high but not perfect agreement) and unvalidated by a human (see above). Models agreeing with each other shows consistency, not correctness.
+- **The labels are machine-made** (four models, high but not perfect agreement) and unvalidated by a human (see above). Models agreeing with each other shows consistency, not correctness.
 - **Only 12 real threats.** Detection rates on 12 items move by 8 points per item. Treat "11 of 12" as a smoke test, not a rate.
 - **Classes with fewer than 10 examples are reported as "not measured":** ransomware (5), credential dump (6) and phishing kit (1). **Exploit sale, malware sale, card fraud and threat chatter had no examples at all**, because public news is mostly *about* attacks rather than the underground posts themselves. Those four classes remain unmeasured on real text.
 - **News text is not underground-forum text.** This measures how DarkLens behaves on real public writing, chiefly how often it raises false alarms, not how well it spots real underground posts.

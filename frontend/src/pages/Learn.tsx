@@ -80,7 +80,7 @@ export default function Learn() {
 
         <Section
           title="What happened on real news"
-          hint="Checked on 300 real public news items on 16 November 2026. Provisional: the labels came from three AI labellers that largely agree (not from people) and the same items were used to find the problems."
+          hint="Checked on 300 real public news items on 16 November 2026. Provisional: the labels came from four AI labellers that largely agree (not from people) and the same items were used to find the problems."
         >
           <ul>
             <li>
