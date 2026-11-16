@@ -162,7 +162,7 @@ See [docs/roadmap.md](docs/roadmap.md): what is done, what needs a person (a fre
 
 ## Team
 
-Bhavit Anand, Krish Anand, Prateek Tanwar, Sahil Prasad, Naisha Kohli.
+[Bhavit Anand](https://github.com/bhavitanand), [Krish Anand](https://github.com/Krish-Anand-dev), [Prateek Tanwar](https://github.com/prateektanwar373), [Sahil Prasad](https://github.com/sahil-prasad), [Naisha Kohli](https://github.com/naisha-kohli). See [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## Licence
 
