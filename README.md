@@ -11,6 +11,15 @@ DarkLens watches public sources where criminals boast, sell and extort (today: l
 
 > Built as a Samsung Innovation Campus capstone (Batch A5). Defensive research only, see [SECURITY.md](SECURITY.md).
 
+![The DarkLens overview: live stats, severity bar and threat types](docs/img/overview.jpg)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/alert-report.jpg" alt="An alert report: score ring, plain-words verdict and every reason behind the score"><br><sub>An alert report. This one is a made-up demo alert: the score, the verdict in plain words, and each reason with its strength.</sub></td>
+    <td width="50%"><img src="docs/img/get-started.jpg" alt="The Get started page: the six-step routine"><br><sub>The built-in Get started page walks a new person through the routine.</sub></td>
+  </tr>
+</table>
+
 ## Using the website
 
 The site has a built-in **Get started** page. In short:
