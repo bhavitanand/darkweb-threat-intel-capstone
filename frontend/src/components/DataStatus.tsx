@@ -17,7 +17,7 @@ function refreshText(minutes: number): string {
 export default function DataStatus({ real, demo }: { real: number; demo: number }) {
   const s = useAsync(api.ingestStatus);
   const last = s.data?.last;
-  const live = last?.mode === 'live';
+  const live = s.data?.live_ready ?? false;
 
   return (
     <Section
@@ -25,7 +25,7 @@ export default function DataStatus({ real, demo }: { real: number; demo: number 
       hint={
         live
           ? `Live feeds, ${refreshText(s.data?.auto_ingest_minutes ?? 0)}. Last update ${timeAgo(last?.finished_at)}.`
-          : 'This site is showing demo data only. The live feeds have not run yet.'
+          : 'This site is showing demo data only. No live feed is switched on yet, because each needs a free key.'
       }
       aside={<Chip tone={live ? 'safe' : 'caution'}>{live ? 'Live' : 'Demo only'}</Chip>}
     >

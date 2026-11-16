@@ -68,7 +68,11 @@ def run_ingest(live: bool, con=None) -> dict:
 def status(con=None) -> dict:
     con = con or db.connect()
     last = db.kv_get(con, STATUS_KEY)
-    return {"last": last, "auto_ingest_minutes": interval_minutes(), "live_ready": last is not None and last.get("mode") == "live"}
+    # "Live" only when a live run really collected from at least one source; a run where every source was skipped
+    # (no keys yet) must not make the site claim live data.
+    live_ready = last is not None and last.get("mode") == "live" and any(
+        s["status"] == "ok" and s["items"] > 0 for s in last.get("sources", []))
+    return {"last": last, "auto_ingest_minutes": interval_minutes(), "live_ready": live_ready}
 
 
 def _retention_days() -> int:

@@ -56,6 +56,20 @@ def test_status_is_persisted_and_demo_items_are_marked(monkeypatch, con):
     assert metas and all(m.get("demo") for m in metas)
 
 
+def test_a_live_run_with_every_source_skipped_is_not_reported_as_live(monkeypatch, con):
+    monkeypatch.delenv("RANSOMWARE_LIVE_API_KEY", raising=False)
+    monkeypatch.delenv("ABUSECH_AUTH_KEY", raising=False)
+    ingest.run_ingest(live=True, con=con)
+    st = ingest.status(con)
+    assert st["last"]["mode"] == "live" and st["live_ready"] is False
+
+
+def test_a_live_run_that_collected_something_is_reported_as_live(monkeypatch, con):
+    _fake_sources(monkeypatch, rw=lambda offline=True: [Item(source="ransomware.live", kind="leak_claim", title="t", text="x ransom")])
+    ingest.run_ingest(live=True, con=con)
+    assert ingest.status(con)["live_ready"] is True
+
+
 def test_live_items_are_not_marked_demo(monkeypatch, con):
     _fake_sources(monkeypatch, rw=lambda offline=True: [Item(source="ransomware.live", kind="leak_claim", title="t", text="x ransom")])
     ingest.run_ingest(live=True, con=con)
