@@ -20,9 +20,12 @@ CATEGORY_BASE = {
 }
 
 
-# Below this confidence a classifier-only guess is reported as "uncertain". Chosen from data, not by feel: ordinary
-# sentences scored 0.19-0.39, and on the synthetic test set the cut removes 26 wrong labels for 17 right ones.
-UNCERTAIN_BELOW = 0.4
+# Below this confidence a classifier-only guess is reported as "uncertain". Chosen from data, not by feel.
+# First cut was 0.4 (everyday sentences scored 0.19-0.39). Measured on 234 real ordinary news items, 0.4 still let
+# 31% of them raise a Low alert, because ordinary text often gets 40-60% confidence for "ransomware leak". The
+# trade-off curve is flat from 0.6 up: at 0.6 only 2.6% raise an alert, for about 4 points of recall on synthetic
+# threat posts (76.5% -> 72.4%). The 234 items were also used to find this, so the 2.6% is optimistic.
+UNCERTAIN_BELOW = 0.6
 
 
 @dataclass

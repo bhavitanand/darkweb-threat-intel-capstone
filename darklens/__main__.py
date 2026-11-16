@@ -7,6 +7,11 @@
   eval --csv FILE           score it on your own labelled data (columns: text,label)
   eval --feedback           score it on labels given by reviewers in the app
   eval --live-claims        check it against real Ransomware.live claims (needs network)
+  eval --csv FILE --pipeline  score the whole product (alerts, "Not sure", false alarms) on your labelled data
+  label pool                gather public text for a real labelled set  (see docs/labelling.md)
+  label sheets NAMES        write one labelling sheet per person, e.g. label sheets bhavit,krish,naisha
+  label check               check the filled-in sheets and measure how much the labellers agree
+  label split               merge the sheets and split into a tuning half and an untouched test half
   notify-test               send a test message on the configured alert channels
   serve                     run the API and dashboard on http://127.0.0.1:8000
 """
@@ -32,7 +37,23 @@ def main():
         train_default(); print("model trained")
     elif cmd == "eval":
         from .nlp.classifier import evaluate, get_classifier
-        if "--csv" in sys.argv:
+        if "--csv" in sys.argv and "--pipeline" in sys.argv:
+            from . import pipeline
+            from .nlp import realeval
+            r = realeval.score_pipeline(get_classifier(), *realeval.load_csv(_opt("--csv")), analyse=pipeline.analyse)
+            print(f"examples: {r['n']}  classes: {r['class_counts']}")
+            print("macro-F1 (whole pipeline):", r["macro_f1"], " accuracy:", r["accuracy"])
+            print(f"classes with enough examples to score fairly (10+): {r['classes_scored']}  ->  macro-F1 on those: {r['macro_f1_scored_classes']}")
+            if r["classes_too_few_to_score"]:
+                print("NOT MEASURED (fewer than 10 examples, do not quote a score for these):", r["classes_too_few_to_score"])
+            for k in ("threats_missed_rate", "threats_wrong_type_rate", "false_alarm_rate", "false_alarm_medium_or_higher_rate"):
+                print(f"{k}: {r[k]}")
+            print("severity of detected threats:", r["severity_of_detected_threats"])
+            print("most common confusions (truth -> predicted, count):", r["top_confusions"])
+            if r["warning"]:
+                print("NOTE:", r["warning"])
+            print(r["report"])
+        elif "--csv" in sys.argv:
             from .nlp import realeval
             _print_scores(realeval.score_labelled(get_classifier(), *realeval.load_csv(_opt("--csv"))))
         elif "--feedback" in sys.argv:
@@ -59,6 +80,9 @@ def main():
         print({k: state[k] for k in ("mode", "items", "alerts", "ok")}, [f"{s['source']}: {s['status']}" for s in state["sources"]])
         if cmd == "demo":
             print("Now run: python -m darklens serve   then open http://127.0.0.1:8000")
+    elif cmd == "label":
+        from .labelling.cli import run
+        sys.exit(run(sys.argv[2:]))
     elif cmd == "notify-test":
         from . import notify
         chans = notify.channels()

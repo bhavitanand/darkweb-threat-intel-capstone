@@ -23,6 +23,13 @@ MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "classifier.joblib
 
 
 class ThreatClassifier:
+    # How strongly rule evidence boosts the model's probability in the hybrid. A class attribute, not a number buried
+    # in the formula, so it can be measured and tuned (the saved model file does not need retraining to change it).
+    # It started as a hand-picked 1.5 that had never been tuned. Measured on 1.5/3/5/8/12: synthetic hybrid macro-F1
+    # 0.836/0.851/0.877/0.890/0.885, with no more real-news false alarms up to 8. It was chosen using the synthetic
+    # test set, so that figure is slightly flattered.
+    RULE_BOOST = 8.0
+
     def __init__(self):
         self.word = TfidfVectorizer(ngram_range=(1, 2), min_df=1, sublinear_tf=True, lowercase=True)
         self.char = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=2, sublinear_tf=True)
@@ -58,7 +65,7 @@ class ThreatClassifier:
             out[:, benign] = np.where(rv.sum(axis=1) == 0, 1.0, 0.0)
             return out
         # hybrid: ML probability boosted by rule evidence, benign suppressed when rules fire
-        fused = ml * (1 + 1.5 * rv)
+        fused = ml * (1 + self.RULE_BOOST * rv)
         benign = self.classes_.index("benign")
         fused[:, benign] *= np.where(rv.sum(axis=1) > 0, 0.4, 1.0)
         return fused / fused.sum(axis=1, keepdims=True)

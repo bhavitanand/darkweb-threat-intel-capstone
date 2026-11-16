@@ -33,6 +33,16 @@
   why: Ransomware-as-a-service operators advertise revenue splits to affiliates.
   patterns: ['\baffiliate (program|panel|wanted)\b', '\b\d{2}\s?/\s?\d{2}\s?(split|revenue)\b', '\braas\b', '\bransomware[- ]as[- ]a[- ]service\b']
 
+- id: DL-RAN-006
+  category: ransomware_leak
+  name: Extortion group claim
+  weight: 65
+  why: An extortion or ransomware group claiming a victim, or its leak-site activity, is the shape of a leak-site entry.
+  patterns:
+    - '\b(extortion|ransomware) (group|gang|crew)\b'
+    - '\bclaims? (the )?(theft|to have (stolen|breached|hacked))\b.{0,60}\b(records|data|customers|files)\b'
+    - '\bleak site\b'
+
 - id: DL-CRD-001
   category: credential_dump
   name: Combolist format
@@ -71,12 +81,34 @@
     - '\b(plain ?text|clear ?text) (passwords?|credentials)\b'
     - '\b\d[\d,\.]*\s?(k|m|million|thousand)?\s?(rows|records|users|accounts|emails)\b.{0,40}\b(with|containing|incl(uding)?)\b.{0,40}\b(emails?|passwords?|credentials|hashes|phone)\b'
 
+- id: DL-CRD-006
+  category: credential_dump
+  name: Data breach reported
+  weight: 55
+  why: A report that personal, customer or employee data was stolen, leaked or put up for sale.
+  patterns:
+    - '\bdata breach\b'
+    - '\b(personal|customer|employee|user|patient)s?[''’]? (data|information|records|details)\b.{0,80}\b(stolen|leaked|exposed|accessed|compromised|up for (sale|auction))'
+    - '\b(stolen|leaked|exposed)\b.{0,40}\b(customer|employee|user|patient|personal) (data|information|records)\b'
+    - '\ball users[''’]? data\b.{0,30}\bstolen'
+
 - id: DL-EXP-001
   category: exploit_sale
   name: Zero-day or exploit for sale
   weight: 85
   why: Selling a working exploit is a high-impact supply-chain risk.
-  patterns: ['\b0[- ]?day\b', '\bzero[- ]day\b', '\bexploit\b.{0,40}\b(for sale|selling|price|btc|xmr)\b', '\bpoc\b.{0,30}\b(sale|selling)\b']
+  # A bare "zero-day" is everyday security news (patch coverage), so the strong rule needs sale wording nearby.
+  patterns:
+    - '\b(0[- ]?day|zero[- ]day)\b.{0,80}\b(for sale|selling|sell|wts|price|buy|buyer|btc|xmr|escrow|\$ ?\d)'
+    - '\b(for sale|selling|sell|wts|buy|buyer|offering)\b.{0,60}\b(0[- ]?day|zero[- ]day)\b'
+    - '\bexploit\b.{0,40}\b(for sale|selling|price|btc|xmr)\b'
+    - '\bpoc\b.{0,30}\b(sale|selling)\b'
+- id: DL-EXP-004
+  category: exploit_sale
+  name: Zero-day mentioned
+  weight: 40
+  why: A zero-day is being discussed. Without a sale it is usually news, so this is only a weak signal.
+  patterns: ['\b0[- ]?day\b', '\bzero[- ]day\b']
 - id: DL-EXP-002
   category: exploit_sale
   name: CVE with working exploit
@@ -88,7 +120,14 @@
   name: Initial access broker listing
   weight: 85
   why: Brokers sell footholds (RDP, VPN, shells) into named organisation types before ransomware crews use them.
-  patterns: ['\b(rdp|vpn|citrix|webshell|domain admin)\b.{0,60}\b(access|for sale|selling)\b', '\binitial access\b', '\baccess to\b.{0,40}\b(company|corp|revenue|employees)\b']
+  # "Initial access" and "VPN access" are ordinary incident-response vocabulary, so every pattern needs sale wording.
+  patterns:
+    - '\b(selling|sell|for sale|wts|offering|buy)\b.{0,50}\b(rdp|vpn|citrix|webshell|shell|domain admin|network|corporate)\b.{0,40}\baccess\b'
+    # Sellers do not always say "selling": a listing, a price or a payment wallet is just as telling.
+    - '\b(rdp|vpn|citrix|webshell|domain admin)\b.{0,60}\baccess\b.{0,160}\b(for sale|selling|price|payment|wallet|bitcoin|btc|xmr|monero|escrow|listings?|\$ ?\d)'
+    - '\binitial access\b.{0,160}\b(for sale|selling|sell|price|payment|wallet|btc|xmr|escrow|listings?|\$ ?\d)'
+    - '\b(selling|sell|wts|buying|offering)\b.{0,40}\binitial access\b'
+    - '\b(selling|sell|wts|for sale|offering)\b.{0,40}\baccess to\b.{0,50}\b(company|corp|revenue|employees)\b'
 
 - id: DL-PHS-001
   category: phishing_kit
@@ -127,7 +166,15 @@
   name: Card data sale
   weight: 75
   why: Stolen payment data is sold in bulk with BIN and country filters.
-  patterns: ['\b(cvv|fullz|dumps)\b', '\bbin\b.{0,30}\b(list|country|checker)\b', '\bcc\b.{0,10}\b(shop|checker)\b']
+  # "dumps" alone also means rubbish dumps and database dumps, so a card context is required.
+  patterns:
+    - '\bfullz\b'
+    - '\b(cc|card|credit card)s? dumps?\b'
+    - '\bdumps?\b.{0,25}\b(track ?[12]|cvv2?|pin)\b'
+    - '\bcvv2?\b.{0,30}\b(sale|selling|fresh|shop|checker)\b'
+    - '\b(sale|selling|fresh|shop|checker)\b.{0,30}\bcvv2?\b'
+    - '\bbin\b.{0,30}\b(list|country|checker)\b'
+    - '\bcc\b.{0,10}\b(shop|checker)\b'
 - id: DL-FRD-002
   category: carding_fraud
   name: Cash-out or mule services

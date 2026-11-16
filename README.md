@@ -94,7 +94,9 @@ flowchart LR
 | --- | --- |
 | 350 synthetic held-out samples | Hybrid macro-F1 **0.836** (rules 0.771, model 0.547). Shows the method works, not real-world performance. |
 | 100 real Ransomware.live claims (16 Nov 2026) | First version scored 90% of them Low. Found by testing on real data and fixed: now all recognised, 68 Medium and 32 High. |
-| Real forum and market posts | **Not measured yet.** No labelled set exists. This is the top item on the [roadmap](docs/roadmap.md). |
+| 234 real ordinary news items (16 Nov 2026) | False alarms fell from 32% to **2.6%** (Medium or higher: 3.0% to 0.9%) after fixing three over-eager rules and the "Not sure" cut, with 11 of 12 real threats still detected. **Provisional:** labels are machine-assisted and the same items were used to find the problems. [Details and caveats](docs/accuracy.md#5-measured-on-real-public-text-16-november-2026) |
+| Exploit sale, malware sale, card fraud, threat chatter on real text | **Not measured.** Public news contains no examples; it needs real underground-style text. |
+| Real forum and market posts | **Not measured yet.** This is the top item on the [roadmap](docs/roadmap.md). |
 
 Details, known weaknesses and how to contribute labels: [docs/accuracy.md](docs/accuracy.md). Reproduce with `python -m darklens eval` (also `--live-claims`, `--feedback`, `--csv FILE`).
 
@@ -107,6 +109,7 @@ Details, known weaknesses and how to contribute labels: [docs/accuracy.md](docs/
 | [docs/data-sources.md](docs/data-sources.md) | Sources and their terms, what is stored and what never is, retention |
 | [docs/alerts-and-notifications.md](docs/alerts-and-notifications.md) | Chat and email alerts, exports |
 | [docs/accuracy.md](docs/accuracy.md) | What has been measured, weaknesses, how to measure properly |
+| [docs/labelling.md](docs/labelling.md) | How to build the real labelled set that will measure accuracy on real text |
 | [docs/api.md](docs/api.md) | Every endpoint |
 | [docs/roadmap.md](docs/roadmap.md) | What is done, what needs a person, what is next |
 | [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | Changes, how to contribute, ethics and responsible use |

@@ -18,6 +18,7 @@ from ..models import Item
 from .corpus import CATEGORIES
 
 MIN_TRUSTWORTHY = 50  # below this many labelled examples a macro-F1 is mostly noise
+MIN_PER_CLASS = 10    # below this many examples of one class, that class is reported as "too few to score"
 
 
 def load_csv(path: str, text_col: str = "text", label_col: str = "label") -> tuple[list[str], list[str]]:
@@ -29,6 +30,8 @@ def load_csv(path: str, text_col: str = "text", label_col: str = "label") -> tup
             raise ValueError(f"CSV is missing column(s): {', '.join(sorted(missing))}")
         for i, row in enumerate(reader, start=2):
             label = (row[label_col] or "").strip()
+            if label == "skip":
+                continue  # out of scope or unjudgeable (see docs/labelling.md): not scored
             if label not in CATEGORIES:
                 raise ValueError(f"line {i}: label '{label}' is not one of {', '.join(CATEGORIES)}")
             if (row[text_col] or "").strip():
@@ -49,6 +52,50 @@ def score_labelled(clf, texts: list[str], labels: list[str]) -> dict:
             out["accuracy"] = round(sum(p == y for p, y in zip(pred, labels)) / len(labels), 4)
     out["warning"] = (f"Only {len(texts)} examples: treat these numbers as a rough guide." if len(texts) < MIN_TRUSTWORTHY else "")
     return out
+
+
+def score_pipeline(clf, texts: list[str], labels: list[str], analyse) -> dict:
+    """Score the product as a visitor experiences it, not just the text model.
+
+    A text counts as 'predicted X' only if DarkLens would raise an alert for it with category X. No alert, or "Not
+    sure", counts as 'benign'. So this measures the model, the rules, the "Not sure" cut and the scoring together,
+    and adds the two numbers a user feels: how many real threats get no alert, and how often ordinary text does.
+    """
+    preds, scores = [], []
+    for t in texts:
+        a = analyse(Item(source="manual", kind="post", title="", text=t), [], [], clf)
+        preds.append(a.category if a.score > 0 and a.category in CATEGORIES else "benign")
+        scores.append((a.score, a.severity))
+    n = len(texts)
+    classes = sorted(set(labels) | set(preds))
+    threats = [i for i, y in enumerate(labels) if y != "benign"]
+    benign = [i for i, y in enumerate(labels) if y == "benign"]
+    missed = [i for i in threats if scores[i][0] == 0]
+    false_alarm = [i for i in benign if scores[i][0] > 0]
+    false_alarm_medium = [i for i in benign if scores[i][1] in ("medium", "high", "critical")]
+    wrong_type = [i for i in threats if scores[i][0] > 0 and preds[i] != labels[i]]
+    confusions = Counter((labels[i], preds[i]) for i in range(n) if labels[i] != preds[i])
+    severity_of_threats = Counter(scores[i][1] for i in threats if scores[i][0] > 0)
+    rate = lambda a, b: round(len(a) / len(b), 4) if b else None  # noqa: E731
+    counts = Counter(labels)
+    scored = sorted(c for c, k in counts.items() if k >= MIN_PER_CLASS)
+    return {
+        "n": n, "class_counts": dict(counts),
+        # A class with only a handful of examples cannot be scored fairly: one example is worth 20 points of recall.
+        "classes_scored": scored,
+        "classes_too_few_to_score": sorted(c for c, k in counts.items() if k < MIN_PER_CLASS),
+        "macro_f1_scored_classes": (round(f1_score(labels, preds, average="macro", labels=scored, zero_division=0), 4) if scored else None),
+        "macro_f1": round(f1_score(labels, preds, average="macro", labels=sorted(set(labels)), zero_division=0), 4),
+        "accuracy": round(sum(p == y for p, y in zip(preds, labels)) / n, 4) if n else None,
+        "report": classification_report(labels, preds, labels=classes, zero_division=0),
+        "threats_missed_rate": rate(missed, threats),
+        "threats_wrong_type_rate": rate(wrong_type, threats),
+        "false_alarm_rate": rate(false_alarm, benign),
+        "false_alarm_medium_or_higher_rate": rate(false_alarm_medium, benign),
+        "severity_of_detected_threats": dict(severity_of_threats),
+        "top_confusions": [(a, b, c) for (a, b), c in confusions.most_common(6)],
+        "warning": (f"Only {n} examples: treat these numbers as a rough guide." if n < MIN_TRUSTWORTHY else ""),
+    }
 
 
 def score_feedback(clf, rows: list[dict]) -> dict:

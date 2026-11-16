@@ -78,6 +78,23 @@ export default function Learn() {
           </ul>
         </Section>
 
+        <Section
+          title="What happened on real news"
+          hint="Checked on 300 real public news items on 16 November 2026. Provisional: the labels were machine-assisted and the same items were used to find the problems."
+        >
+          <ul>
+            <li>
+              Of 234 ordinary news items, DarkLens first raised an alert on 32% of them. After fixing three over-eager rules
+              and the "Not sure" threshold, that is 2.6%, and only 0.9% were Medium or higher.
+            </li>
+            <li>11 of the 12 real threats in that set are still detected.</li>
+            <li>
+              Four kinds of threat (exploit sales, malware sales, card fraud and chatter) had no real examples at all, so they
+              are not measured. News about attacks is not the same as underground posts.
+            </li>
+          </ul>
+        </Section>
+
         <Section title="Honest limits">
           <ul>
             <li>The test posts are synthetic, so real-world accuracy will be lower than these figures.</li>

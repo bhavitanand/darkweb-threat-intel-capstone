@@ -9,3 +9,6 @@ models/*.joblib
 evidence/
 
 .cache/
+
+# Private labelling files: they hold third-party text that must not be re-published
+/labelling/

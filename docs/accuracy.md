@@ -31,20 +31,51 @@ Be careful reading the "100 / 100": recognising the category is partly true by c
 
 ## 3. The "not sure" outcome
 
-The text model labelled almost every ordinary sentence as a threat type, but with low confidence. On 23 everyday sentences (a picnic, a meeting reminder, a recipe) it guessed a threat type at 19 to 39% confidence in 18 cases. So when the model is the **only** evidence and its confidence is below **40%**, DarkLens now says **"Not sure"** and raises no alert. The 40% cut was chosen from data: on the 350 synthetic test samples it removes 26 wrong labels for 17 right ones among classifier-only guesses.
+The text model labelled almost every ordinary sentence as a threat type, but with low confidence. On 23 everyday sentences (a picnic, a meeting reminder, a recipe) it guessed a threat type at 19 to 39% confidence in 18 cases. So when the model is the **only** evidence and its confidence is below the cut, DarkLens says **"Not sure"** and raises no alert. The cut started at 40% and was **raised to 60%** after measuring 234 real ordinary news items (section 5). The cost on synthetic threat posts is small (about 4 points of recall at 60%) and the gain is large.
 
 What it does not touch: anything backed by a detection rule, a watchlist mention, leaked credentials, or a source that states the category (a leak-site tracker). A post that mentions your watched domain but looks like nothing in particular still alerts, labelled "Not sure" rather than a threat type.
 
 Still imperfect: the cut is on confidence, and the model is sometimes confidently wrong. One everyday sentence ("The server maintenance window is Sunday 2am to 4am") still gets a ransomware label at 59%. The real fix is retraining on real labelled data (see below).
 
-## 4. Known weaknesses
+## 4. Known weaknesses (summary)
 
-- **Confidently wrong labels remain possible.** Ordinary text at 40% confidence or higher can still receive a threat label, usually with a Low score. Cause: the model was trained only on synthetic data.
+- **Confidently wrong labels remain possible.** Ordinary text at 60% confidence or higher can still receive a threat label, usually with a Low score (the cut was raised from 40% after real-news measurement; see section 5). Cause: the model was trained only on synthetic data.
 - **Keyword rules miss unusual wording.** For example a database sale that avoids the words "database", "dump", "emails" and "passwords". Database-for-sale posts are covered by rule `DL-CRD-005`, with tests for look-alikes that must stay Low.
 - **Threat chatter is the weakest class** in the synthetic evaluation.
 - **No measurement on forum and market posts.** There is no real labelled set for them.
 
-## 5. How to measure properly (and how you can help)
+## 5. Measured on real public text (16 November 2026)
+
+**What was measured.** 300 real items collected from public security-news and general-news feeds (headlines and short summaries). Of these: **234 ordinary (benign)**, **54 attack or exploitation news that fits none of the eight classes** (set aside as "skip", not scored), and **12 real threats** (5 ransomware or extortion, 6 breach reports, 1 phishing kit). The whole product was scored (`eval --csv ... --pipeline`), not just the text model.
+
+**How the labels were made.** An AI language model labelled all 300 independently of the DarkLens model, following the written policy in [labelling.md](labelling.md). These are **machine-assisted ("silver") labels, not human ones.** A 50-item validation sheet for a human is prepared (`label validate make`), and until a person has checked a sample, the figures below should be read as provisional.
+
+### What the real news revealed, and what changed
+
+| Measured on the 234 ordinary items | Before | After |
+| --- | --- | --- |
+| Raise **any** alert | 32.1% (75) | **2.6%** (6) |
+| Raise **Medium or higher** | 3.0% (7) | **0.9%** (2) |
+| Real threats (12): raise an alert | 11 | 11 |
+| Real threats (12): alert with the **right type** | 6 | 7 |
+| Synthetic hybrid macro-F1 | 0.836 | 0.890 |
+
+What was found and fixed:
+- **Three rules fired on everyday vocabulary.** "Zero-day" (patch-news), "initial access" (incident-response reports) and "dumps" (a story about rubbish dumps) scored as exploit sales or card fraud. They now require sale wording. A first fix demanded the word "selling" and lost a genuine access listing, caught by a regression test, so the rules also accept "listings", a price or a payment wallet.
+- **The model labelled ordinary text as a threat** at 40 to 60% confidence. Raising the "Not sure" cut from 40% to 60% removed nearly all of it, but also silenced real breach and extortion news that the model had only been flagging by accident. Two narrow rules were added for what was missing (breach reports and extortion-group claims), which brought detection back to 11 of 12.
+- **The rule boost in the hybrid was an untuned guess** (1.5). Measured at 1.5, 3, 5, 8 and 12, the best overall was 8.
+
+### Read these numbers with care
+
+- **The 300 items were used to find the problems**, so the 2.6% and 0.9% are optimistic. The honest test is items collected *later* (`label sheets --since DATE` selects only items first seen after a date), and that has not been run yet.
+- **The labels are machine-assisted** and unvalidated by a human (see above).
+- **Only 12 real threats.** Detection rates on 12 items move by 8 points per item. Treat "11 of 12" as a smoke test, not a rate.
+- **Classes with fewer than 10 examples are reported as "not measured":** ransomware (5), credential dump (6) and phishing kit (1). **Exploit sale, malware sale, card fraud and threat chatter had no examples at all**, because public news is mostly *about* attacks rather than the underground posts themselves. Those four classes remain unmeasured on real text.
+- **News text is not underground-forum text.** This measures how DarkLens behaves on real public writing, chiefly how often it raises false alarms, not how well it spots real underground posts.
+- The synthetic 0.890 was chosen using the synthetic test set, so it is slightly flattered. The real-data measurement is the number to trust more.
+- Breach reports still tend to be typed "ransomware leak" rather than "credential dump" (4 of 6).
+
+## 6. How to measure properly (and how you can help)
 
 ### Reviewer feedback in the website
 

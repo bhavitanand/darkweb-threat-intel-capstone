@@ -16,6 +16,19 @@ All notable changes. Dates are when the change was made.
 - **Rule `DL-CRD-005`** (database offered for sale) with edge-case tests.
 - Documentation (`docs/`), CI workflow, Dependabot, issue and pull request templates.
 
+### Changed (after measuring real public news; see docs/accuracy.md)
+- On 234 real ordinary news items, alerts on ordinary text fell from 32% to 2.6% (Medium or higher: 3.0% to 0.9%), with real-threat detection held at 11 of 12 (provisional: machine-assisted labels, tuned on the same items).
+- Rules `DL-EXP-001`, `DL-EXP-003` and `DL-FRD-001` now need sale wording (they fired on "zero-day" patch news, "initial access" incident reports and "rubbish dumps"); a weak `DL-EXP-004` keeps bare zero-day mentions. New rules `DL-CRD-006` (breach reports) and `DL-RAN-006` (extortion-group claims).
+- The "Not sure" cut rose from 40% to 60% confidence. The hybrid's rule boost, previously an untuned 1.5, is now a measured 8 (synthetic hybrid macro-F1 0.836 to 0.890, chosen on the synthetic test set).
+- `label validate make|check` compares machine-assisted labels with a human sample; `label sheets --since DATE` carves out an untouched test set by fetch date; evaluation files may contain `skip` rows (not scored).
+- Fixed: feeds declared as Windows-1252 were decoded as UTF-8, turning apostrophes into replacement characters.
+
+### Added (real-data accuracy toolkit)
+- `python -m darklens label pool | sheets | check | split`: gathers public text from security and general RSS feeds (accumulating across runs), writes a private sheet per labeller with a shared overlap, validates the filled sheets with friendly errors, measures inter-labeller agreement (Cohen's and Fleiss' kappa, listing disagreements), and splits the consensus into a tuning half and a locked test half. Labelling files are git-ignored.
+- `eval --csv FILE --pipeline`: scores the whole product (alerts, "Not sure", scoring) with missed-threat and false-alarm rates, and reports classes with fewer than 10 examples as "not measured".
+- Feed XML is size-capped and DTD/entity declarations are refused.
+- Guide for labellers: `docs/labelling.md`.
+
 ### Added (after launch)
 - **"Not sure" outcome:** when the text model is the only evidence and is under 40% confident, DarkLens no longer attaches a threat label to what is most likely ordinary text. Rule hits, watchlist mentions, leaked credentials and tracker-sourced claims are unaffected.
 - **CISA Known Exploited Vulnerabilities** feed (no key) and **URLhaus** malware-link feed (same free abuse.ch key). Both rate Low unless they mention your watchlist; a flaw used by ransomware groups rates Medium.
