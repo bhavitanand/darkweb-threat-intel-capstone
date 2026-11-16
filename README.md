@@ -25,7 +25,7 @@ The page served at `/` is the original single-file dashboard. There is also a ne
 | Feature | How it works |
 | --- | --- |
 | **Explainable scores** | Every alert is a set of signals combined with noisy-OR, `1 - prod(1 - s/100)`. Weak signals add up, a strong one dominates. Generic content signals are discounted so only converging evidence reaches critical. |
-| **Hybrid classifier** | 23 original MIT-licensed detection rules fused with a TF-IDF + logistic regression model over 8 categories. |
+| **Hybrid classifier** | 24 original MIT-licensed detection rules fused with a TF-IDF + logistic regression model over 8 categories. |
 | **Honest evaluation** | Tested on held-out sentence structures the model never saw, not just held-out rows. |
 | **Watchlist-aware** | Watched domains and emails turn generic intel into "this is about us" and are the strongest signal. |
 | **Validated IOCs** | Bitcoin and Tron addresses pass Base58Check, private IPs and file names are dropped, defanged indicators (`hxxp`, `[.]`) are restored. |
@@ -77,7 +77,7 @@ darklens/
   collectors/   ransomware_live, threatfox, forums (live + offline snapshots)
   crawler/      allowlisted read-only Tor crawler
   extract/      validated IOC extraction
-  rules/        rules.yaml (23 original rules) and the engine
+  rules/        rules.yaml (24 original rules) and the engine
   nlp/          synthetic corpus, hybrid classifier, evaluation
   breach/       Pwned Passwords k-anonymity, combolist masking, watchlist exposure
   graph/        entity graph and actor linking
@@ -132,7 +132,7 @@ Ransomware.live data requires attribution and non-commercial use. The base URL i
 - The training corpus is **synthetic**, so F1 shows the method works, not how it performs on real forum text. Real labelled data is the next step.
 - Actor linking by shared wallets is a heuristic, not proof. Shared infrastructure or a shared tutorial can create false links.
 - Rule weights are hand-tuned and the severity thresholds are not calibrated on real incidents.
-- Rules look for specific patterns (for example `email:password` lines for stolen logins), so a short post that only says a database is for sale can score lower than it deserves.
+- Rules are keyword patterns, so unusual wording can still slip past them. Database-for-sale posts are covered (rule `DL-CRD-005`), but a seller who avoids words like "database", "dump", "emails" or "passwords" may score lower than deserved.
 - The database is a local SQLite file. On a free host that restarts, it resets to the demo data.
 - Per-email breach search needs a paid HIBP key and is not enabled by default.
 - The Tor crawler is intentionally minimal and its allowlist ships empty.

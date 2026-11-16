@@ -44,7 +44,7 @@
   name: Database dump wording
   weight: 70
   why: Sellers describe breaches by rows, tables and hash type.
-  patterns: ['\b\d[\d,\.]*\s?(k|m|million)?\s?(rows|records|users|accounts)\b.{0,50}\b(leak|dump|database|breach|sale)', '\b(sql|db) dump\b', '\b(md5|bcrypt|sha1)\b.{0,30}\b(hash|hashed)\b']
+  patterns: ['\b\d[\d,\.]*\s?(k|m|million)?\s?(rows|records|users|accounts)\b.{0,50}\b(leak|dump|database|breach|sale)', '\b(sql|db|database) dump\b', '\b(md5|bcrypt|sha1)\b.{0,30}\b(hash|hashed)\b']
 - id: DL-CRD-003
   category: credential_dump
   name: Stealer logs
@@ -57,6 +57,19 @@
   weight: 60
   why: A leak tied to a named company or domain is directly actionable for that company.
   patterns: ['\b(employee|customer|corporate|admin) (credentials|logins|accounts)\b', '\bvpn (logins?|credentials)\b']
+- id: DL-CRD-005
+  category: credential_dump
+  name: Database offered for sale
+  weight: 70
+  why: A post that offers a database or dump and mentions emails, passwords or user records is a data sale, even without sample lines.
+  patterns:
+    # "dump" alone is common in IT ("heap dump", "memory dump"), so those are excluded; "not selling" is excluded too.
+    - '(?<!not )(?<!never )\b(selling|for sale|wts|offering|auction)\b.{0,60}\b(database|db|(?<!heap )(?<!memory )(?<!core )(?<!crash )(?<!thread )dump|leak(ed)?|combo ?lists?|breach)\b.{0,100}\b(emails?|passwords?|credentials|users|customers|accounts|records|rows|hashes|logins?)\b'
+    - '\b(database|db|(?<!heap )(?<!memory )(?<!core )(?<!crash )(?<!thread )dump|combo ?lists?)\b.{0,100}\b(emails?|passwords?|credentials|hashes|logins?)\b.{0,100}(?<!not )(?<!never )\b(for sale|selling|wts|price|btc|xmr|escrow)\b'
+    - '\b(database|db|(?<!heap )(?<!memory )(?<!core )(?<!crash )(?<!thread )dump|combo ?lists?)\b.{0,60}(?<!not )(?<!never )\b(for sale|selling|wts|offering)\b.{0,100}\b(emails?|passwords?|credentials|users|hashes|logins?)\b'
+    - '\b(fresh|new|private|leaked|hacked|stolen) (database|db|(?<!heap )(?<!memory )(?<!core )(?<!crash )(?<!thread )dump|combo ?lists?)\b.{0,100}\b(emails?|passwords?|credentials|hashes|logins?)\b'
+    - '\b(plain ?text|clear ?text) (passwords?|credentials)\b'
+    - '\b\d[\d,\.]*\s?(k|m|million|thousand)?\s?(rows|records|users|accounts|emails)\b.{0,40}\b(with|containing|incl(uding)?)\b.{0,40}\b(emails?|passwords?|credentials|hashes|phone)\b'
 
 - id: DL-EXP-001
   category: exploit_sale
