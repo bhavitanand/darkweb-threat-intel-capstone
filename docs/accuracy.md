@@ -18,7 +18,7 @@ This shows the method works. It does **not** show how well it works on real text
 
 `python -m darklens eval --live-claims` fetches the 100 most recent public claims (it needs `RANSOMWARE_LIVE_API_KEY`) and checks what DarkLens does with them. Every one of them is a genuine ransomware claim, so this measures one class only. The figures below were taken locally, for research, from the legacy API, whose entries carry a text description.
 
-**Caveat to re-measure:** the PRO API, which the deployed site must use, documents no description field. Without the description, fewer rules can fire, so expect more Medium and fewer High than the numbers below until this is re-run with a key.
+**Re-measured on the PRO API (16 November 2026, n = 100, the data the deployed site really uses):** all 100 recognised as ransomware claims, and they score 64 Medium, 32 High and 4 Critical, none Low (scores 57 to 95). The PRO responses do carry descriptive text, so the rules fire as they did on the older API. Worth knowing: a few Critical scores come from several rules stacking on one description (for example "database dump" wording on a ransomware claim), so Critical on a claim about an unrelated organisation deserves reviewer scrutiny.
 
 | | Before | After |
 | --- | --- | --- |

@@ -9,6 +9,8 @@
 | Forum posts | Short text snippets | No | Live collection needs the allowlisted Tor crawler, which ships disabled (see [SECURITY.md](../SECURITY.md)) |
 | Demo samples | Made-up posts and claims in `data/samples/` | No | Fictional. Labelled with a Demo badge |
 
+**Volume and how it is treated.** ThreatFox returns over a thousand indicators a day, against about a hundred ransomware claims. A lone indicator is news about the internet rather than about you, so each is capped at Low (it does not appear as a Medium alert) unless it mentions something on your watchlist, in which case it becomes a High or Critical alert. Indicator-feed entries are also left out of the connection map. The Alerts page shows them 100 at a time.
+
 Live collection is off until `AUTO_INGEST_MINUTES` is set on the server (or `python -m darklens ingest --live` is run). A source without its key is **skipped**, and the website's "Where this data comes from" card says so. Without any key the site shows only the demo samples.
 
 ## Ransomware.live: what its terms mean for this code

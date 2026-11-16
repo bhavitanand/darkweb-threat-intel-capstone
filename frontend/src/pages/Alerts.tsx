@@ -7,14 +7,20 @@ import { AlertRow } from '../components/AlertRow';
 import SourceCredit from '../components/SourceCredit';
 import { Empty, ErrorBox, Loading, PageHead } from '../components/ui';
 
+const PAGE_SIZE = 100;
+
 export default function Alerts() {
   const { data, error, loading, slow, reload } = useAsync(api.alerts);
   const [severity, setSeverity] = useState('');
   const [category, setCategory] = useState('');
   const [q, setQ] = useState('');
   const [source, setSource] = useState('');
+  const [limit, setLimit] = useState(PAGE_SIZE);
 
   const shown = useMemo(() => filterAlerts(data ?? [], { severity, category, q, data: source }), [data, severity, category, q, source]);
+  // Changing a filter starts again from the first page.
+  const onFilter = <T,>(set: (v: T) => void) => (v: T) => { set(v); setLimit(PAGE_SIZE); };
+  const page = shown.slice(0, limit);
   const present = useMemo(() => Array.from(new Set((data ?? []).map((a) => a.category))), [data]);
 
   return (
@@ -35,16 +41,16 @@ export default function Alerts() {
       </p>
       <div className="filters">
         <div className="pills" role="group" aria-label="Filter by severity">
-          <button className="pill" aria-pressed={severity === ''} onClick={() => setSeverity('')}>All</button>
+          <button className="pill" aria-pressed={severity === ''} onClick={() => onFilter(setSeverity)('')}>All</button>
           {SEVERITY_ORDER.map((s) => (
-            <button key={s} className="pill" aria-pressed={severity === s} onClick={() => setSeverity(severity === s ? '' : s)}>
+            <button key={s} className="pill" aria-pressed={severity === s} onClick={() => onFilter(setSeverity)(severity === s ? '' : s)}>
               {SEVERITY_META[s].label}
             </button>
           ))}
         </div>
         <div className="field">
           <label htmlFor="cat">Type</label>
-          <select id="cat" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select id="cat" value={category} onChange={(e) => onFilter(setCategory)(e.target.value)}>
             <option value="">All types</option>
             {present.map((c) => (
               <option key={c} value={c}>{CATEGORY_META[c]?.label ?? categoryLabel(c)}</option>
@@ -53,7 +59,7 @@ export default function Alerts() {
         </div>
         <div className="field">
           <label htmlFor="src">Data</label>
-          <select id="src" value={source} onChange={(e) => setSource(e.target.value)}>
+          <select id="src" value={source} onChange={(e) => onFilter(setSource)(e.target.value)}>
             <option value="">Real and demo</option>
             <option value="real">Real feeds only</option>
             <option value="demo">Demo samples only</option>
@@ -61,7 +67,7 @@ export default function Alerts() {
         </div>
         <div className="field">
           <label htmlFor="q">Search</label>
-          <input id="q" type="search" placeholder="Company, poster, word..." value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="q" type="search" placeholder="Company, poster, word..." value={q} onChange={(e) => onFilter(setQ)(e.target.value)} />
         </div>
       </div>
 
@@ -69,15 +75,24 @@ export default function Alerts() {
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data && (
         <>
-          <p className="muted" aria-live="polite">Showing {shown.length} of {data.length}</p>
+          <p className="muted" aria-live="polite">
+            Showing {page.length} of {shown.length}{shown.length !== data.length ? ` matching (${data.length} in total)` : ''}
+          </p>
           {shown.length ? (
             <>
               <ul className="alert-list">
-                {shown.map((a) => (
+                {page.map((a) => (
                   <li key={a.item_id}><AlertRow a={a} /></li>
                 ))}
               </ul>
-              <SourceCredit alerts={shown} />
+              {shown.length > page.length && (
+                <div className="row" style={{ justifyContent: 'center', marginTop: 16 }}>
+                  <button className="btn btn-ghost" onClick={() => setLimit(limit + PAGE_SIZE)}>
+                    Show {Math.min(PAGE_SIZE, shown.length - page.length)} more ({shown.length - page.length} left)
+                  </button>
+                </div>
+              )}
+              <SourceCredit alerts={page} />
             </>
           ) : (
             <Empty title="Nothing matches those filters">Clear a filter or try a different word.</Empty>

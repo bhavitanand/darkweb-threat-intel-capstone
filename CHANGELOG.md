@@ -17,6 +17,7 @@ All notable changes. Dates are when the change was made.
 - Documentation (`docs/`), CI workflow, Dependabot, issue and pull request templates.
 
 ### Changed
+- **Found by switching on real data:** ThreatFox adds over a thousand indicators a day. A lone indicator is now capped at Low (it flooded the site with Medium alerts), a listed indicator that mentions your watchlist is now a High or Critical alert (feed items previously ignored the watchlist), the connection map leaves indicator-feed entries out and caps itself at 300 alerts, its layout work is bounded so it cannot freeze a browser, and the Alerts page shows 100 at a time.
 - **Ransomware.live terms compliance.** Live collection uses the free PRO API (`RANSOMWARE_LIVE_API_KEY`, sent as `X-API-KEY`) and is skipped without a key. Its claims are shown with a linked attribution, the API never returns their raw text, and they are left out of CSV, STIX and feedback exports. See `docs/data-sources.md`.
 - ThreatFox responses are checked by `query_status`, so "no result" and bad-key answers no longer break a run.
 - Real ransomware claims were scored Low 90% of the time. They are now recognised from their source and score Medium or High (see `docs/accuracy.md`).

@@ -50,6 +50,32 @@ def test_a_watchlist_hit_on_a_real_claim_outranks_a_plain_claim():
     assert about_us.score > plain.score and about_us.severity == "critical"
 
 
+# ---- indicator feed (ThreatFox) ----
+
+def ioc(text="Dridex indicator (botnet_cc): evil.example confidence 100", confidence=100):
+    return Item(source="threatfox", kind="ioc", title="Dridex domain", text=text, actor="Dridex",
+                meta={"ioc_type": "domain", "confidence": confidence})
+
+
+@pytest.mark.parametrize("confidence", [0, 50, 75, 100])
+def test_a_lone_feed_indicator_stays_low_whatever_its_confidence(confidence):
+    a = pipeline.analyse(ioc(confidence=confidence), [], [], get_classifier())
+    assert a.category == "ioc_feed" and a.severity == "low" and a.score < 40
+
+
+def test_a_feed_indicator_for_your_domain_becomes_a_real_alert():
+    """The thing that makes an indicator matter is that it is about you."""
+    plain = pipeline.analyse(ioc(), [], [], get_classifier())
+    mine = pipeline.analyse(ioc(), ["evil.example"], [], get_classifier())
+    assert mine.score > plain.score and mine.severity in ("high", "critical")
+    assert any(s.name == "Watchlist domain match" for s in mine.signals)
+
+
+def test_a_feed_indicator_for_your_email_matches_too():
+    a = pipeline.analyse(ioc("Stealer indicator: ceo@acme.example confidence 80", 80), [], ["ceo@acme.example"], get_classifier())
+    assert any(s.name == "Watchlist email match" for s in a.signals) and a.severity in ("high", "critical")
+
+
 # ---- evaluation tools ----
 
 def write_csv(path, rows, header=("text", "label")):

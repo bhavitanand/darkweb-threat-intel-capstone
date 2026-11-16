@@ -147,6 +147,15 @@ describe('layoutGraph', () => {
     const dist = (a: string, b: string) => Math.hypot(p[a].x - p[b].x, p[a].y - p[b].y);
     expect(dist('a', 'b')).toBeLessThan(dist('a', 'd') + 200);
   });
+  it('stays fast and valid on a large graph', () => {
+    const many: GraphNode[] = Array.from({ length: 1500 }, (_, i) => ({ id: `n${i}`, kind: 'item' as const, label: `n${i}`, score: i % 100 }));
+    const lnk: GraphLink[] = many.slice(1).map((n, i) => ({ source: n.id, target: `n${Math.floor(i / 3)}`, rel: 'x' }));
+    const start = Date.now();
+    const placed = layoutGraph(many, lnk, 960, 560);
+    expect(Date.now() - start).toBeLessThan(5000);
+    expect(placed).toHaveLength(1500);
+    expect(placed.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
+  });
   it('handles an empty graph', () => {
     expect(layoutGraph([], [], 600, 400)).toEqual([]);
   });

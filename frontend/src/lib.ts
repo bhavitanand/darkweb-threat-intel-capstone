@@ -215,9 +215,12 @@ export function layoutGraph(nodes: GraphNode[], links: GraphLink[], width: numbe
     .map((l) => [index.get(l.source), index.get(l.target)] as const)
     .filter((e): e is readonly [number, number] => e[0] !== undefined && e[1] !== undefined);
   const k = Math.sqrt((width * height) / Math.max(pts.length, 1)) * 0.7;
+  // Repulsion compares every pair, so cost grows with the square of the node count. Keep the work bounded
+  // (about 4 million pair checks) so a big graph never freezes the page: fewer passes when there are many nodes.
+  const steps = Math.max(30, Math.min(iterations, Math.floor(4_000_000 / Math.max(pts.length * pts.length, 1))));
 
-  for (let it = 0; it < iterations; it++) {
-    const cool = 1 - it / iterations;
+  for (let it = 0; it < steps; it++) {
+    const cool = 1 - it / steps;
     for (let i = 0; i < pts.length; i++) {
       for (let j = i + 1; j < pts.length; j++) {
         let dx = pts[i].x - pts[j].x;

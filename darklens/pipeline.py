@@ -32,6 +32,19 @@ class Analysis:
     exposures: list
 
 
+def _watchlist_signals(low: str, iocs: dict, watch_domains: list[str], watch_emails: list[str]) -> list[Signal]:
+    """Signals for text (already lower-cased) that mentions something on the watchlist."""
+    out: list[Signal] = []
+    found = " ".join(iocs.get("domain", []) + iocs.get("email", []))
+    for d in watch_domains:
+        if d.lower() in low or d.lower() in found:
+            out.append(Signal("Watchlist domain match", 90, f"Mentions your watched domain {d}.", d, full=True))
+    for e in watch_emails:
+        if e.lower() in low:
+            out.append(Signal("Watchlist email match", 85, f"Mentions your watched email {e}.", e, full=True))
+    return out
+
+
 def analyse(item: Item, watch_domains: list[str] | None = None, watch_emails: list[str] | None = None,
             clf=None) -> Analysis:
     clf = clf or get_classifier()
@@ -42,8 +55,12 @@ def analyse(item: Item, watch_domains: list[str] | None = None, watch_emails: li
     iocs = extract_iocs(item.text)
     if item.kind == "ioc":
         # Feed indicators are evidence, not prose: score by the feed's own confidence, skip the text classifier.
+        # One known-bad indicator is news about the internet, not about you, and a feed carries over a thousand a
+        # day, so on its own it is capped to stay Low (the 0.55 generic discount puts 70 at 38). What makes one
+        # matter is your watchlist: a listed domain or email of yours is a High or Critical alert.
         c = int(item.meta.get("confidence") or 50)
-        sig = [Signal("Feed indicator", c, f"Listed by {item.source} with confidence {c}.", item.actor)]
+        sig = [Signal("Feed indicator", min(c, 70), f"Listed by {item.source} with confidence {c}.", item.actor)]
+        sig += _watchlist_signals(f"{item.title}. {item.text}".lower(), iocs, watch_domains, watch_emails)
         score, sev = combine(sig)
         return Analysis("ioc_feed", c / 100, {}, sig, score, sev, iocs, [])
     category, conf, probs = clf.classify(text)
@@ -61,13 +78,7 @@ def analyse(item: Item, watch_domains: list[str] | None = None, watch_emails: li
 
     # Watchlist: the highest-value signal, because it turns generic intel into "this is about us".
     exposures = credential_exposure(item.text, watch_domains)
-    low = text.lower()
-    for d in watch_domains:
-        if d.lower() in low or d.lower() in " ".join(iocs.get("domain", []) + iocs.get("email", [])):
-            signals.append(Signal("Watchlist domain match", 90, f"Mentions your watched domain {d}.", d, full=True))
-    for e in watch_emails:
-        if e in low:
-            signals.append(Signal("Watchlist email match", 85, f"Mentions your watched email {e}.", e, full=True))
+    signals += _watchlist_signals(text.lower(), iocs, watch_domains, watch_emails)
     if exposures:
         signals.append(Signal("Credentials for watched domain", 95,
                               f"{len(exposures)} email:password pairs for your domains appear in this item.",

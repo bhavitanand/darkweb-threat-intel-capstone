@@ -107,6 +107,17 @@ def test_demo_data_remains_exportable(client):
     assert len(rows) == client.get("/api/stats").json()["alerts"] > 0
 
 
+# ---- the connection map stays readable when a feed is large ----
+
+def test_graph_leaves_out_indicator_feed_entries_and_is_capped(client):
+    feed = [Item(source="threatfox", kind="ioc", title=f"M{i}", text=f"Dridex indicator: 10.9.{i // 250}.{i % 250 + 1} confidence 80",
+                 actor="Dridex", meta={"confidence": 80}) for i in range(60)]
+    pipeline.run(items=feed, con=client.module.con())
+    nodes = client.get("/api/graph").json()["graph"]["nodes"]
+    assert nodes and not any(n.get("category") == "ioc_feed" for n in nodes)
+    assert len([n for n in nodes if n["kind"] == "item"]) <= client.module.GRAPH_MAX_ALERTS
+
+
 # ---- analyse input limits ----
 
 def test_analyse_rejects_oversized_text(client):

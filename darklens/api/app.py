@@ -264,9 +264,15 @@ def evidence(item_id: str):
     return HTMLResponse(page)
 
 
+GRAPH_MAX_ALERTS = 300
+
+
 @app.get("/api/graph")
 def graph():
-    rows = _with_iocs(_rows(limit=2000))
+    """The connection map. Indicator-feed entries (over a thousand a day from ThreatFox) are left out: each is a
+    lone indicator with nothing to connect, and they would bury the posts, posters and wallets that do connect.
+    The highest-scoring GRAPH_MAX_ALERTS alerts are shown so the picture stays readable."""
+    rows = [r for r in _with_iocs(_rows(limit=2000)) if r["category"] != "ioc_feed"][:GRAPH_MAX_ALERTS]
     for r in rows:
         r["id"] = r["item_id"]
     g = entities.build_graph(rows)
