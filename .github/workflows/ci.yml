@@ -40,7 +40,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://postgres@localhost:5432/darklens_test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: pip
