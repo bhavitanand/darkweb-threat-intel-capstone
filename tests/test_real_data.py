@@ -69,8 +69,19 @@ def test_ordinary_text_is_not_given_a_threat_label(text):
     assert a.category in ("benign", "uncertain") and a.score == 0 and a.signals == []
 
 
+class StubClassifier:
+    """A classifier that always gives the same low-confidence threat guess, so the "Not sure" mechanism is tested on its
+    own and not through whatever a particular trained model happens to say about a sentence."""
+
+    def __init__(self, category="ransomware_leak", confidence=0.3):
+        self.category, self.confidence = category, confidence
+
+    def classify(self, text):
+        return self.category, self.confidence, {self.category: self.confidence, "benign": 1 - self.confidence}
+
+
 def test_uncertain_is_reported_with_its_confidence():
-    a = pipeline.analyse(Item(source="forum", kind="post", title="", text="lunch menu"), [], [], get_classifier())
+    a = pipeline.analyse(Item(source="forum", kind="post", title="", text="lunch menu"), [], [], StubClassifier(confidence=0.3))
     assert a.category == "uncertain" and 0 < a.confidence < pipeline.UNCERTAIN_BELOW
 
 
@@ -89,20 +100,23 @@ def test_anything_backed_by_a_rule_is_never_made_uncertain(text):
 def test_a_watchlist_mention_still_alerts_but_is_not_given_a_threat_label():
     """We do not know what kind of post it is, but it mentions something of yours, so it must still alert."""
     text = "Happy birthday to Sarah from accounting, see acme.example"
-    plain = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), [], [], get_classifier())
-    mine = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), ["acme.example"], [], get_classifier())
+    stub = StubClassifier(confidence=0.3)
+    plain = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), [], [], stub)
+    mine = pipeline.analyse(Item(source="forum", kind="post", title="", text=text), ["acme.example"], [], stub)
     assert plain.category == "uncertain" and plain.score == 0
     assert mine.category == "uncertain" and mine.severity == "critical"
     assert [s.name for s in mine.signals] == ["Watchlist domain match"]  # the weak guess adds nothing
 
 
 def test_the_threshold_is_what_decides(monkeypatch):
-    text = "Company picnic photos from Friday afternoon, everyone had a great time at the lake"
-    item = Item(source="forum", kind="post", title="", text=text)
+    item = Item(source="forum", kind="post", title="", text="Company picnic photos from Friday afternoon at the lake")
+    stub = StubClassifier(confidence=0.5)
     monkeypatch.setattr(pipeline, "UNCERTAIN_BELOW", 0.0)
-    assert pipeline.analyse(item, [], [], get_classifier()).category == "ransomware_leak"  # the old behaviour
+    assert pipeline.analyse(item, [], [], stub).category == "ransomware_leak"  # a guess is reported as a threat type
+    monkeypatch.setattr(pipeline, "UNCERTAIN_BELOW", 0.6)
+    assert pipeline.analyse(item, [], [], stub).category == "uncertain"       # below the cut it is "not sure"
     monkeypatch.setattr(pipeline, "UNCERTAIN_BELOW", 0.4)
-    assert pipeline.analyse(item, [], [], get_classifier()).category == "uncertain"
+    assert pipeline.analyse(item, [], [], stub).category == "ransomware_leak"  # the cut is what decides
 
 
 def test_an_item_that_becomes_uncertain_loses_its_stale_alert(tmp_path):

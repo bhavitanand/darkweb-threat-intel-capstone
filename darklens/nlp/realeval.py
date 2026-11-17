@@ -124,3 +124,38 @@ def live_claims_check(clf, items: list[Item], analyse) -> dict:
     return {"n": n, "recognised_as_ransomware_leak": leak, "recall": round(leak / n, 3) if n else None,
             "scored_medium_or_higher": flagged, "share_medium_or_higher": round(flagged / n, 3) if n else None,
             "lowest_scoring_missed": [{"title": t, "category": c, "score": s} for c, s, _sev, t in missed]}
+
+
+def holdout_report(test_from: str = "2026-01-01") -> dict:
+    """The honest protocol on the committed real data, reproducible by anyone with the repository.
+
+    A model is trained on the synthetic templates plus every real breach write-up added BEFORE `test_from` and 80% of
+    the real advisories, then measured on what it never saw: the breaches added on or after `test_from`, and the other
+    20% of the advisories. Breaches are measured by how many raise an alert and how many get the right type;
+    advisories (benign by the labelling policy) by how many wrongly raise an alert.
+    """
+    from .. import pipeline
+    from . import realdata
+    from .classifier import nvd_holdout, train_default
+
+    clf = train_default(save=False, real=True, hibp_before=test_from, hold_out_nvd=True)
+    breaches = [r for r in realdata.load(realdata.HIBP_CSV) if r["added"] >= test_from]
+    advisories = [r for r in realdata.load(realdata.NVD_CSV) if nvd_holdout(r)]
+
+    def run(rows):
+        out = []
+        for r in rows:
+            a = pipeline.analyse(Item(source="manual", kind="post", title="", text=r["text"]), [], [], clf)
+            out.append((a.score > 0, a.category, a.severity))
+        return out
+
+    b, v = run(breaches), run(advisories)
+    nb, nv = max(len(b), 1), max(len(v), 1)
+    return {
+        "test_from": test_from, "breaches_tested": len(b), "advisories_tested": len(v),
+        "breach_alert_rate": round(sum(x[0] for x in b) / nb, 4),
+        "breach_right_type_rate": round(sum(1 for x in b if x[0] and x[1] == "credential_dump") / nb, 4),
+        "breach_medium_or_higher_rate": round(sum(1 for x in b if x[0] and x[2] in ("medium", "high", "critical")) / nb, 4),
+        "advisory_false_alarm_rate": round(sum(x[0] for x in v) / nv, 4),
+        "advisory_false_alarm_medium_or_higher_rate": round(sum(1 for x in v if x[0] and x[2] in ("medium", "high", "critical")) / nv, 4),
+    }

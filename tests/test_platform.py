@@ -142,7 +142,8 @@ def test_ingest_requires_the_token_when_configured(monkeypatch):
 def test_ingest_status_reports_the_last_run(client):
     st = client.get("/api/ingest/status").json()
     assert st["last"]["mode"] == "demo" and st["live_ready"] is False
-    assert {s["source"] for s in st["last"]["sources"]} == {"ransomware.live", "threatfox", "urlhaus", "cisa-kev", "forums"}
+    assert {s["source"] for s in st["last"]["sources"]} == {"ransomware.live", "threatfox", "urlhaus", "cisa-kev", "haveibeenpwned",
+                                                              "security-news", "openphish", "feodo", "forums"}
 
 
 # ---- feedback loop ----
@@ -222,3 +223,15 @@ def test_prune_removes_old_real_items_but_keeps_demo_and_labelled(client):
     titles = {r["title"] for r in client.get("/api/alerts").json()}
     assert removed == 1 and "Old" not in titles and "Labelled" in titles
     assert any(r["demo"] for r in client.get("/api/alerts").json())  # demo data untouched
+
+
+def test_live_ingest_is_refused_unless_a_token_is_configured(client):
+    r = client.post("/api/ingest?offline=false")
+    assert r.status_code == 403 and "INGEST_TOKEN" in r.json()["detail"]
+
+
+def test_live_ingest_with_a_token_checks_it(monkeypatch):
+    module = load_app(monkeypatch, INGEST_TOKEN="s3cret")
+    with TestClient(module.app) as c:
+        assert c.post("/api/ingest?offline=false").status_code == 401
+        assert c.post("/api/ingest?offline=false", headers={"X-Ingest-Token": "nope"}).status_code == 401

@@ -19,8 +19,8 @@
   --info-bg: #e9eefc;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(16, 23, 49, 0.05), 0 6px 20px rgba(16, 23, 49, 0.05);
-  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -159,7 +159,8 @@ textarea { min-height: 170px; resize: vertical; font-family: var(--mono); font-s
 .cat-rows .mono { text-align: right; }
 
 /* ----- lists ----- */
-.alert-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.alert-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.alert-list > li { min-width: 0; }
 .alert-row {
   display: flex; gap: 14px; align-items: center; padding: 14px; background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); text-decoration: none; color: inherit;

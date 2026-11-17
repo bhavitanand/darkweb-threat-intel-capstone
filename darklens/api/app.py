@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -9,7 +10,7 @@ import threading
 from collections import Counter
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -29,8 +30,10 @@ app = FastAPI(title="DarkLens", version=__version__)
 _lock = threading.Lock()
 LABELS = set(CATEGORIES) | {"ioc_feed", "known_exploited", "uncertain"}
 
-_DOMAIN = re.compile(r"^([a-z0-9-]+\.)+[a-z]{2,}$")
+_DOMAIN = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")  # labels: no leading or trailing hyphen, at most 63 characters
 _EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+WATCHLIST_MAX = 100
+_PRODUCT = re.compile(r"^[a-z0-9][a-z0-9 .+_#-]{1,58}[a-z0-9+#]$")  # a product or vendor name such as "screenconnect"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -51,7 +54,7 @@ app.add_middleware(RateLimitMiddleware, read_per_min=_int_env("RATE_LIMIT_PER_MI
 _ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 if _ORIGINS:
     app.add_middleware(CORSMiddleware, allow_origins=_ORIGINS, allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-                       allow_headers=["Content-Type", "X-Ingest-Token"], max_age=600)
+                       allow_headers=["Content-Type", "X-Ingest-Token"], expose_headers=["X-Total-Count"], max_age=600)
 
 
 def con():
@@ -69,7 +72,7 @@ def seed():
 
 
 class WatchIn(BaseModel):
-    kind: str = Field(max_length=10)  # "domain" | "email"
+    kind: str = Field(max_length=10)  # "domain" | "email" | "product"
     value: str = Field(max_length=200)
 
 
@@ -98,11 +101,13 @@ def _alert_row(r) -> dict:
     return d
 
 
-def _rows(where: str = "", args: tuple = (), limit: int | None = None):
+def _rows(where: str = "", args: tuple = (), limit: int | None = None, offset: int = 0):
     q = ("SELECT a.*, i.source, i.kind, i.title, i.text, i.url, i.seen_at, i.actor, i.org, i.country, i.meta "
          "FROM alerts a JOIN items i ON i.id=a.item_id " + where + " ORDER BY a.score DESC, a.item_id")
     if limit:
         q += f" LIMIT {int(limit)}"
+        if offset:
+            q += f" OFFSET {int(offset)}"
     return [_alert_row(r) for r in con().execute(q, args)]
 
 
@@ -142,9 +147,15 @@ def _voter(request: Request) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _require_ingest_token(token: str | None):
+def _require_ingest_token(token: str | None, live: bool = False):
+    """Demo loading is harmless, so it is open unless a token is set. A LIVE collection makes the server fetch from
+    outside and holds the database for the duration, so it is refused unless INGEST_TOKEN is configured and supplied
+    (the scheduled collection, AUTO_INGEST_MINUTES, does not go through this endpoint)."""
     expected = os.getenv("INGEST_TOKEN", "")
-    if expected and token != expected:
+    if live and not expected:
+        raise HTTPException(403, "Live collection through the API is switched off. Set INGEST_TOKEN on the server to enable it, "
+                                 "or use AUTO_INGEST_MINUTES.")
+    if expected and not hmac.compare_digest((token or "").encode(), expected.encode()):
         raise HTTPException(401, "A valid X-Ingest-Token header is required.")
 
 
@@ -173,16 +184,32 @@ def stats():
 
 
 @app.get("/api/alerts")
-def alerts(severity: str | None = None, category: str | None = None, q: str | None = None, limit: int = 1000):
-    rows = _rows(limit=min(max(limit, 1), 5000))
+def alerts(response: Response, severity: str | None = None, category: str | None = None, q: str | None = None,
+           data: str | None = None, limit: int = 1000, offset: int = 0):
+    """Alerts, highest score first. Filtering and paging happen in the database, so a page costs the same however many
+    alerts exist. The `X-Total-Count` header is the number of alerts matching the filters (before limit and offset).
+    `data` is "real" or "demo"."""
+    clauses, args = [], []
     if severity:
-        rows = [r for r in rows if r["severity"] == severity]
+        clauses.append("a.severity=?")
+        args.append(severity)
     if category:
-        rows = [r for r in rows if r["category"] == category]
+        clauses.append("a.category=?")
+        args.append(category)
+    if data in ("real", "demo"):
+        clauses.append("i.meta " + ("" if data == "demo" else "NOT ") + "LIKE '%\"demo\": true%'")
     if q:
-        ql = q.lower()
-        rows = [r for r in rows if ql in (r["title"] + " " + r["text"]).lower()]
-    return _with_iocs(rows)
+        like = "%" + q.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        # Text a source forbids re-publishing is never returned, so it must not be searchable either (a search that
+        # reveals whether hidden text contains a word would leak it). Those alerts match on their title only.
+        clauses.append("LOWER(COALESCE(i.title,'') || ' ' || CASE WHEN i.meta LIKE '%\"no_redistribute\": true%' "
+                       "THEN '' ELSE COALESCE(i.text,'') END) LIKE ? ESCAPE '\\'")
+        args.append(like)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    total = con().execute("SELECT COUNT(*) c FROM alerts a JOIN items i ON i.id=a.item_id " + where, tuple(args)).fetchone()["c"]
+    response.headers["X-Total-Count"] = str(total)
+    # Clamped, not rejected: an absurd offset (beyond what the database can hold) returns an empty page, never a 500.
+    return _with_iocs(_rows(where, tuple(args), limit=min(max(limit, 1), 5000), offset=min(max(offset, 0), 10**9)))
 
 
 @app.get("/api/alerts/{item_id}")
@@ -288,14 +315,19 @@ def watchlist():
 @app.post("/api/watchlist")
 def watch_add(w: WatchIn):
     value = w.value.strip().lower()
-    if w.kind not in ("domain", "email"):
-        raise HTTPException(400, "kind must be domain or email")
-    if not (_DOMAIN if w.kind == "domain" else _EMAIL).match(value):
+    if w.kind not in ("domain", "email", "product"):
+        raise HTTPException(400, "kind must be domain, email or product")
+    if not {"domain": _DOMAIN, "email": _EMAIL, "product": _PRODUCT}[w.kind].match(value):
         raise HTTPException(400, f"That does not look like a valid {w.kind}.")
     with _lock:
         c = con()
+        existing = db.watch_all(c)
+        if (w.kind, value) not in existing and len(existing) >= WATCHLIST_MAX:
+            # Nobody can remove entries yet and the list is shared, so it must not be allowed to grow without limit.
+            raise HTTPException(400, f"The shared watchlist is full ({WATCHLIST_MAX} entries). Run your own copy of DarkLens for more.")
         db.watch_add(c, w.kind, value)
-        pipeline.rescore(c)  # re-score everything stored (demo and live) against the new watchlist
+        # Only items that mention the new entry can change, so only those are re-scored (all stored items, demo and live).
+        pipeline.rescore(c, contains=value)
         notify.dispatch(c)
     return watchlist()
 
@@ -307,7 +339,7 @@ def ingest_status():
 
 @app.post("/api/ingest")
 def run_ingest(offline: bool = True, x_ingest_token: str | None = Header(default=None)):
-    _require_ingest_token(x_ingest_token)
+    _require_ingest_token(x_ingest_token, live=not offline)
     with _lock:
         return ingest.run_ingest(live=not offline, con=con())
 
@@ -317,10 +349,11 @@ def analyse(body: AnalyseIn):
     """Analyse any pasted text. Nothing is stored."""
     wl = db.watch_all(con())
     a = pipeline.analyse(Item(source="manual", kind="post", title=body.title, text=body.text),
-                         [v for k, v in wl if k == "domain"], [v for k, v in wl if k == "email"], get_classifier())
+                         [v for k, v in wl if k == "domain"], [v for k, v in wl if k == "email"], get_classifier(),
+                         [v for k, v in wl if k == "product"])
     return {"category": a.category, "confidence": round(a.confidence, 3), "score": a.score, "severity": a.severity,
             "signals": [s.to_dict() for s in a.signals], "iocs": a.iocs, "probs": a.probs,
-            "exposures": a.exposures}
+            "exposures": a.exposures, "truncated": a.truncated}
 
 
 _eval_cache: dict = {}

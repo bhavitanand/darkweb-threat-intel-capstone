@@ -10,13 +10,23 @@ export type Route =
   | { name: 'analyse' }
   | { name: 'learn' };
 
-/** Hash routing keeps this a pure static site: no rewrite rules needed on Vercel. */
+/** A pasted or mangled link such as /#/alerts/%E0%A4%A is not valid percent-encoding. decodeURIComponent throws on it,
+ *  and a throw while rendering blanks the whole page, so fall back to the text as typed (it will simply not be found). */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** Hash routing keeps this a static site. (index.html also turns a pasted /alerts into /#/alerts.) */
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').split('?')[0];
   const [head, ...rest] = path.split('/').filter(Boolean);
   switch (head) {
     case 'alerts':
-      return rest.length ? { name: 'alert', id: decodeURIComponent(rest.join('/')) } : { name: 'alerts' };
+      return rest.length ? { name: 'alert', id: safeDecode(rest.join('/')) } : { name: 'alerts' };
     case 'start':
       return { name: 'start' };
     case 'graph':

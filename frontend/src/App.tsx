@@ -13,6 +13,8 @@ import Analyse from './pages/Analyse';
 import Learn from './pages/Learn';
 import Start from './pages/Start';
 
+const DEFAULT_TITLE = document.title;
+
 const NAV = [
   { name: 'overview', href: '#/', label: 'Overview', Icon: LayoutDashboard },
   { name: 'start', href: '#/start', label: 'Get started', Icon: Compass },
@@ -27,10 +29,25 @@ function Status() {
   const [ok, setOk] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
-    fetch(`${BASE}/api/health`)
-      .then((r) => live && setOk(r.ok))
-      .catch(() => live && setOk(false));
-    return () => { live = false; };
+    // Check now, every 30 seconds, and when the tab comes back into view: a server that goes down (or wakes up)
+    // while the page is open must not leave a stale "online" badge. A check that hangs counts as not reachable.
+    const check = () => {
+      const ctl = new AbortController();
+      const timer = window.setTimeout(() => ctl.abort(), 10000);
+      fetch(`${BASE}/api/health`, { signal: ctl.signal })
+        .then((r) => live && setOk(r.ok))
+        .catch(() => live && setOk(false))
+        .finally(() => window.clearTimeout(timer));
+    };
+    check();
+    const every = window.setInterval(check, 30000);
+    const onVisible = () => document.visibilityState === 'visible' && check();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      live = false;
+      window.clearInterval(every);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
   const text = ok === null ? 'Connecting' : ok ? 'Server online' : 'Server not reachable';
   return (
@@ -60,7 +77,12 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [route]);
+    // A title per page: it names the browser tab and history entries, and makes shared links readable.
+    const label = NAV.find((n) => n.name === current)?.label;
+    document.title = route.name === 'overview' || !label ? DEFAULT_TITLE : `${route.name === 'alert' ? 'Alert report' : label} | DarkLens`;
+    // On a phone the menu scrolls sideways: keep the current page's tab in view.
+    document.querySelector<HTMLElement>('.nav a[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [route, current]);
 
   return (
     <>
@@ -87,7 +109,10 @@ export default function App() {
       <footer className="footer">
         DarkLens is a Samsung Innovation Campus capstone project. Alerts marked Demo are made up. It reads text only and
         never stores real stolen data. Live ransomware claims: source{' '}
-        <a href={RANSOMWARE_LIVE_URL} target="_blank" rel="noreferrer">Ransomware.live</a> (non-commercial use).{' '}
+        <a href={RANSOMWARE_LIVE_URL} target="_blank" rel="noreferrer">Ransomware.live</a> (non-commercial use). Data breaches:{' '}
+        <a href="https://haveibeenpwned.com" target="_blank" rel="noreferrer">Have I Been Pwned</a> (CC BY 4.0). Phishing:{' '}
+        <a href="https://openphish.com" target="_blank" rel="noreferrer">OpenPhish</a>. Botnets, malware links and indicators:{' '}
+        <a href="https://abuse.ch" target="_blank" rel="noreferrer">abuse.ch</a>. News headlines link to their sources.{' '}
         <a href={REPO_URL} target="_blank" rel="noreferrer">Source and documentation on GitHub</a>.
       </footer>
     </>

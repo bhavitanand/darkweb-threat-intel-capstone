@@ -231,3 +231,80 @@ def test_email_channel_builds_a_message(monkeypatch, con):
     assert notify.dispatch(con) == 1
     assert sent["host"] == "smtp.example" and sent["port"] == 587 and sent["tls"] and sent["to"] == "me@example.com"
     assert sent["subject"].startswith("DarkLens")
+
+
+# ---- notify edge cases ----
+
+class _Resp:
+    def __init__(self, code):
+        self.status_code = code
+
+
+class _HTTPError(Exception):
+    def __init__(self, code):
+        super().__init__(f"HTTP {code}")
+        self.response = _Resp(code)
+
+
+def _two_watch_hits(con):
+    db.watch_add(con, "domain", "acme.example")
+    for title in ("First leak", "Second leak"):
+        pipeline.run(items=[Item(source="ransomware.live", kind="post", title=title,
+                                 text="a@acme.example:Passw0rd1 b@acme.example:Passw0rd2 c@acme.example:Passw0rd3 database dump " + title)], con=con)
+
+
+def test_a_message_the_channel_refuses_does_not_block_later_alerts(monkeypatch, con):
+    """A 4xx means this message can never be delivered. It used to be retried forever, silencing every alert after it."""
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", "https://hooks.example/x")
+    _two_watch_hits(con)
+    sent = []
+
+    def sender(url, text):
+        if "First leak" in text:
+            raise _HTTPError(400)
+        sent.append(text)
+    monkeypatch.setattr(notify, "send_webhook", sender)
+    assert notify.dispatch(con) == 1 and len(sent) == 1 and "Second leak" in sent[0]
+    assert notify.dispatch(con) == 0  # the refused one is not retried either
+
+
+@pytest.mark.parametrize("code", [408, 429, 500, 502, 503])
+def test_server_side_or_busy_errors_are_retried_next_run(monkeypatch, con, code):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", "https://hooks.example/x")
+    db.watch_add(con, "domain", "acme.example")
+    pipeline.run(items=[Item(source="ransomware.live", kind="post", title="L", text="a@acme.example:Passw0rd1 b@acme.example:Passw0rd2 c@acme.example:Passw0rd3 dump")], con=con)
+
+    def failing(url, text):
+        raise _HTTPError(code)
+    monkeypatch.setattr(notify, "send_webhook", failing)
+    assert notify.dispatch(con) == 0
+    sink = Sink()
+    monkeypatch.setattr(notify, "send_webhook", sink)
+    assert notify.dispatch(con) == 1
+
+
+@pytest.mark.parametrize("title", ["a\nBcc: evil@example.com", "a\r\nSubject: x", "tab\there", " line sep", "\x00nul\x1b[31m", "x" * 100000, "💀" * 5000, ""])
+def test_messages_are_one_clean_bounded_line_whatever_the_title(monkeypatch, con, title):
+    msg = notify.format_message({"id": "i", "score": 80, "severity": "high", "title": title, "why": title, "watch": True})
+    first, second = msg.split("\n")[0], msg.split("\n")[1]
+    assert len(msg) < 1000 and "\r" not in msg and "\x00" not in msg and "\x1b" not in msg
+    assert "\n" not in first[len("DarkLens HIGH 80/100: "):] and msg.count("\n") == 1 and second.startswith("About your watchlist.")
+
+
+def test_an_email_subject_can_never_carry_extra_headers(monkeypatch):
+    seen = {}
+
+    class FakeSMTP:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def starttls(self): pass
+        def login(self, *a): pass
+        def send_message(self, msg): seen["msg"] = msg
+    monkeypatch.setattr(notify.smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setenv("SMTP_HOST", "smtp.example")
+    monkeypatch.setenv("ALERT_EMAIL_TO", "me@example.com")
+    text = notify.format_message({"id": "i", "score": 90, "severity": "critical", "title": "x\r\nBcc: evil@example.com", "why": "w", "watch": False})
+    notify._send("email", text)
+    msg = seen["msg"]
+    assert msg["Bcc"] is None and "\n" not in str(msg["Subject"]) and msg["To"] == "me@example.com"

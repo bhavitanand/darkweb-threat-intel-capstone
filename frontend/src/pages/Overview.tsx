@@ -1,7 +1,7 @@
 import { ArrowRight, ScanSearch } from 'lucide-react';
 import { api } from '../api';
 import { useAsync } from '../hooks';
-import { SEVERITY_META, SEVERITY_ORDER, TONE_HEX, categoryLabel, mostWorrying } from '../lib';
+import { SEVERITY_META, SEVERITY_ORDER, TONE_HEX, categoryLabel } from '../lib';
 import { AlertRow } from '../components/AlertRow';
 import DataStatus from '../components/DataStatus';
 import SourceCredit from '../components/SourceCredit';
@@ -11,7 +11,8 @@ const TONE_VAR = TONE_HEX;
 
 export default function Overview() {
   const stats = useAsync(api.stats);
-  const alerts = useAsync(api.alerts);
+  // The five worst real alerts: ask for just enough, already sorted by the server, not the whole list.
+  const alerts = useAsync(() => api.alerts({ data: 'real', limit: 5 }).then(async (p) => (p.rows.length ? p : api.alerts({ limit: 5 }))));
 
   return (
     <>
@@ -40,7 +41,16 @@ export default function Overview() {
               value={(stats.data.by_severity.critical ?? 0) + (stats.data.by_severity.high ?? 0)}
               hint="Critical or high"
             />
-            <StatTile tone="info" label="Alerts raised" value={stats.data.alerts} hint="All severities" />
+            <StatTile
+              tone="info"
+              label="Alerts raised"
+              value={stats.data.alerts - (stats.data.by_category.ioc_feed ?? 0)}
+              hint={
+                stats.data.by_category.ioc_feed
+                  ? `Posts and claims, plus ${stats.data.by_category.ioc_feed.toLocaleString()} lone feed indicators`
+                  : 'All severities'
+              }
+            />
             <StatTile tone="caution" label="Posts read" value={stats.data.items} hint="Collected so far" />
             <StatTile
               tone="safe"
@@ -96,11 +106,11 @@ export default function Overview() {
             {alerts.data && (
               <>
                 <ul className="alert-list">
-                  {mostWorrying(alerts.data).map((a) => (
+                  {alerts.data.rows.map((a) => (
                     <li key={a.item_id}><AlertRow a={a} /></li>
                   ))}
                 </ul>
-                <SourceCredit alerts={mostWorrying(alerts.data)} />
+                <SourceCredit alerts={alerts.data.rows} />
               </>
             )}
           </Section>

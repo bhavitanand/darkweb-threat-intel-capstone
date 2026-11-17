@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 
 from ..models import Item
-from .base import cached_get, load_sample
+from .base import cached_get, load_sample, text
 
 BASE = os.environ.get("RANSOMWARE_LIVE_BASE", "https://api-pro.ransomware.live").rstrip("/")
 KEY_ENV = "RANSOMWARE_LIVE_API_KEY"
@@ -27,23 +27,23 @@ class MissingKey(RuntimeError):
 
 
 def _to_item(v: dict) -> Item:
-    org = v.get("victim") or v.get("post_title") or ""
-    group = v.get("group") or v.get("group_name") or ""
-    sector = v.get("activity") or ""
-    site = v.get("website") or v.get("domain") or ""
-    desc = v.get("description") or ""  # the legacy API had one; the PRO API documents none
-    text = f"{org} was claimed by {group}."
+    org = text(v.get("victim")) or text(v.get("post_title"))
+    group = text(v.get("group")) or text(v.get("group_name"))
+    sector = text(v.get("activity"))
+    site = text(v.get("website")) or text(v.get("domain"))
+    desc = text(v.get("description"))  # the legacy API had one; the PRO API documents none
+    body = f"{org} was claimed by {group}."
     if sector and sector.lower() != "not found":
-        text += f" Sector: {sector}."
+        body += f" Sector: {sector}."
     if site:
-        text += f" Website: {site}."
+        body += f" Website: {site}."
     if desc:
-        text += f" {desc}"
+        body += f" {desc}"
     return Item(
-        source="ransomware.live", kind="leak_claim", title=f"{group}: {org}", text=text.strip(),
-        url=v.get("permalink") or v.get("url") or "",
-        seen_at=(v.get("attackdate") or v.get("discovered") or "")[:10] or "",
-        actor=group, org=org, country=v.get("country", "") or "",
+        source="ransomware.live", kind="leak_claim", title=f"{group}: {org}", text=body.strip(),
+        url=text(v.get("permalink")) or text(v.get("url")),
+        seen_at=(text(v.get("attackdate")) or text(v.get("discovered")))[:10],
+        actor=group, org=org, country=text(v.get("country"), 80),
         meta={"attribution": ATTRIBUTION, "no_redistribute": True},
     )
 
@@ -61,4 +61,6 @@ def fetch(offline: bool = True, limit: int = 100) -> list[Item]:
     data = cached_get(f"{BASE}/victims/recent", headers={"X-API-KEY": key})
     if isinstance(data, dict):  # tolerate a wrapped response
         data = data.get("victims") or data.get("data") or []
-    return [_to_item(v) for v in data[:limit] if isinstance(v, dict)]
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected answer from Ransomware.live.")
+    return [_to_item(v) for v in data[:max(limit, 0)] if isinstance(v, dict)]

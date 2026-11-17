@@ -50,9 +50,9 @@ Collect real data with `python -m darklens ingest --live`, after getting a free 
 | Feature | How it works |
 | --- | --- |
 | **Explainable scores** | Every alert is a set of signals combined with noisy-OR, `1 - prod(1 - s/100)`. Weak signals add up, a strong one dominates. Generic signals are discounted so only converging evidence reaches critical. |
-| **Hybrid classifier** | 24 original MIT-licensed detection rules fused with a TF-IDF + logistic regression model over 8 categories. |
+| **Hybrid classifier** | 27 original MIT-licensed detection rules fused with a TF-IDF + logistic regression model over 8 categories, with a "Not sure" answer instead of a guess when the model alone is unsure. |
 | **Honest evaluation** | Synthetic held-out templates, **plus** checks on real claims, reviewer feedback and your own labelled data. The page [docs/accuracy.md](docs/accuracy.md) says what is and is not measured. |
-| **Watchlist-aware** | Watched domains and emails turn generic intel into "this is about us" and are the strongest signal. Adding one re-scores everything stored. |
+| **Watchlist-aware** | Watched domains, emails and **software or vendor names** turn generic intel into "this is about us". An attack on a product you run, or a CISA-listed exploited flaw in it, becomes High; a patch story is Medium. Adding an entry re-scores the stored items that mention it. |
 | **Live and demo data, clearly separated** | Real feeds on a schedule with per-source status; synthetic samples carry a Demo badge and never trigger notifications. |
 | **Validated IOCs** | Bitcoin and Tron addresses pass Base58Check, private IPs and file names are dropped, defanged indicators (`hxxp`, `[.]`) are restored. |
 | **Actor linking and campaigns** | Personas that share a wallet or indicator are linked; alerts connected through shared indicators are grouped, with risk spread by Personalized PageRank. |
@@ -95,6 +95,8 @@ flowchart LR
 | 350 synthetic held-out samples | Hybrid macro-F1 **0.836** (rules 0.771, model 0.547). Shows the method works, not real-world performance. |
 | 100 real Ransomware.live claims (16 Nov 2026) | First version scored 90% of them Low. Found by testing on real data and fixed: now all recognised, 68 Medium and 32 High. |
 | 234 real ordinary news items (16 Nov 2026) | False alarms fell from 32% to **2.6%** (Medium or higher: 3.0% to 0.9%) after fixing three over-eager rules and the "Not sure" cut, with 11 of 12 real threats still detected. **Provisional:** labels are from four independent AI labellers (kappa 0.85), not humans, and the same items were used to find the problems. [Details and caveats](docs/accuracy.md#5-measured-on-real-public-text-16-november-2026) |
+| 177 **untouched** real items (17 Nov 2026, scored once before any change) | **0 false alarms on 113 ordinary items**, but **3 of 9 real breach reports were missed** (worded "data exposed", "impacted by a breach"). The rule was fixed afterwards, so that set is spent; with 9 threats this is a warning, not a rate. [Details](docs/accuracy.md#the-untouched-test-17-november-2026) |
+| **1,033 real breaches and 1,043 real advisories** (public data, trained before 2026, tested on 117 breaches and 203 advisories never seen) | **100% of unseen breaches detected and correctly typed** (from 36%), and **0% false alarms on unseen advisories** (from 9.9%). Real text, free sources, reproducible with `python -m darklens eval --real` and enforced in CI. The breach figure is flattered by their shared style, and the model was tuned using the news sets: [read the caveats](docs/accuracy.md#trained-and-measured-on-real-data-17-november-second-round). |
 | Exploit sale, malware sale, card fraud, threat chatter on real text | **Not measured.** Public news contains no examples; it needs real underground-style text. |
 | Real forum and market posts | **Not measured yet.** This is the top item on the [roadmap](docs/roadmap.md). |
 
@@ -121,7 +123,7 @@ darklens/
   collectors/   ransomware_live, threatfox, forums (live + offline snapshots)
   crawler/      allowlisted read-only Tor crawler (disabled by default)
   extract/      validated IOC extraction
-  rules/        rules.yaml (24 original rules) and the engine
+  rules/        rules.yaml (27 original rules) and the engine
   nlp/          synthetic corpus, hybrid classifier, evaluation (synthetic, real claims, feedback, CSV)
   breach/       Pwned Passwords k-anonymity, combolist masking, watchlist exposure
   graph/        entity graph and actor linking
@@ -135,7 +137,8 @@ dashboard/      original single-page dashboard (served by the API at /)
 frontend/       React + TypeScript website (Vite)
 docs/           documentation
 data/           demo samples, and a place for real labelled examples
-tests/          pytest suite
+tests/          pytest suite (runs in CI)
+tests_real/     the same product on real collected text and the live site (local; needs the private labelling data)
 ```
 
 ## Tests
@@ -147,6 +150,8 @@ cd frontend && npm ci && npm run lint && npm test && npm run build
 ```
 
 CI runs both on every push, with a real Postgres service for the storage and API tests.
+
+**On real data, not only synthetic:** `python -m pytest tests_real -q` runs every component on the collected real items (robustness, determinism, speed, indicator extraction, masking, the whole API, exports, the hidden-text guarantee) and enforces accuracy floors on the labelled real sets; `tests_real/test_live_site.py` smoke-tests the deployed site on its live feeds. The real text is private and git-ignored, so these are skipped on a fresh clone and are not part of CI.
 
 ## Honest limitations
 
@@ -166,6 +171,10 @@ See [docs/roadmap.md](docs/roadmap.md): what is done, what needs a person (a fre
 ## Team
 
 [Bhavit Anand](https://github.com/bhavitanand), [Krish Anand](https://github.com/Krish-Anand-dev), [Prateek Tanwar](https://github.com/prateektanwar373), [Sahil Prasad](https://github.com/sahil-prasad), [Naisha Kohli](https://github.com/naisha-kohli). See [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+## Data credits
+
+Breach descriptions used for training and testing come from [Have I Been Pwned](https://haveibeenpwned.com) (Troy Hunt), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Vulnerability descriptions come from the [NIST National Vulnerability Database](https://nvd.nist.gov) (public domain). Ransomware claims: [Ransomware.live](https://www.ransomware.live). Indicators: [abuse.ch](https://abuse.ch). Exploited vulnerabilities: [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog). Details in [data/real_labelled/README.md](data/real_labelled/README.md) and [docs/data-sources.md](docs/data-sources.md).
 
 ## Licence
 

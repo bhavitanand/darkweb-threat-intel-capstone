@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 
 _NS = uuid.UUID("5f4c2f0e-8d3a-4f1b-9c53-7d1a0b6e2a11")  # fixed namespace: the same input always gives the same ids
-_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
+_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r", "\n", " ", "​", "﻿")  # incl. hidden leading characters
 
 CSV_COLUMNS = ["id", "severity", "score", "category", "confidence", "title", "source", "actor", "org", "country",
                "seen_at", "url", "demo", "indicators", "top_reasons"]
@@ -19,7 +19,8 @@ CSV_COLUMNS = ["id", "severity", "score", "category", "confidence", "title", "so
 def _safe_cell(v) -> str:
     """Spreadsheets run text that starts with = + - @ as a formula. Alert text comes from the internet, so neutralise it."""
     s = "" if v is None else str(v)
-    return "'" + s if s.startswith(_FORMULA_STARTS) else s
+    # Also catch a formula hidden behind leading spaces ("  =1+1"): look at the first visible character.
+    return "'" + s if s.startswith(_FORMULA_STARTS) or s.lstrip(" ").startswith(_FORMULA_STARTS[:4]) else s
 
 
 def to_csv(alerts: list[dict]) -> str:

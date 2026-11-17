@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 
 from ..models import Item
-from .base import USER_AGENT
+from .base import USER_AGENT, text
 
 URL = "https://urlhaus-api.abuse.ch/v1/urls/recent/limit/{limit}/"
 _CONFIDENCE = {"online": 80, "offline": 40}  # anything else (unknown) is 50
@@ -24,17 +24,20 @@ class MissingKey(RuntimeError):
 
 
 def _to_item(r: dict) -> Item:
-    tags = [t for t in (r.get("tags") or []) if isinstance(t, str)]
+    raw_tags = r.get("tags")
+    tags = [t[:60] for t in (raw_tags if isinstance(raw_tags, list) else []) if isinstance(t, str)][:20]
     family = tags[0] if tags else "malware"
-    host = r.get("host") or ""
+    status = text(r.get("url_status"), 30)
     return Item(source="urlhaus", kind="ioc", title=f"URLhaus {family} download link",
-                text=f"Malware download link ({host}): {r['url']} tags: {', '.join(tags) or 'none'}",
-                url=r.get("urlhaus_reference") or "", seen_at=(r.get("date_added") or "")[:10],
-                actor=family, meta={"confidence": _CONFIDENCE.get(r.get("url_status") or "", 50),
-                                    "status": r.get("url_status"), "threat": r.get("threat")})
+                text=f"Malware download link ({text(r.get('host'), 255)}): {text(r.get('url'))} tags: {', '.join(tags) or 'none'}",
+                url=text(r.get("urlhaus_reference")), seen_at=text(r.get("date_added"))[:10],
+                actor=family, meta={"confidence": _CONFIDENCE.get(status, 50),
+                                    "status": status, "threat": text(r.get("threat"), 60)})
 
 
 def parse(body: dict) -> list[Item]:
+    if not isinstance(body, dict):
+        raise RuntimeError("URLhaus answered with something that is not a JSON object.")
     status = body.get("query_status")
     if status == "no_results":
         return []
@@ -43,7 +46,7 @@ def parse(body: dict) -> list[Item]:
     urls = body.get("urls")
     if not isinstance(urls, list):
         return []
-    return [_to_item(x) for x in urls if isinstance(x, dict) and x.get("url")]
+    return [_to_item(x) for x in urls if isinstance(x, dict) and text(x.get("url"))]
 
 
 def fetch(offline: bool = True, limit: int = 100) -> list[Item]:

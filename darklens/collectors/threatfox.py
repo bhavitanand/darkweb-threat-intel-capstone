@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 
 from ..models import Item
-from .base import USER_AGENT, load_sample
+from .base import USER_AGENT, load_sample, text
 
 URL = "https://threatfox-api.abuse.ch/api/v1/"
 
@@ -20,16 +20,20 @@ class MissingKey(RuntimeError):
 
 
 def _to_item(r: dict) -> Item:
-    malware = r.get("malware_printable") or r.get("malware") or "unknown malware"
-    text = (f"{malware} indicator ({r.get('threat_type', '')}): {r['ioc']} "
-            f"confidence {r.get('confidence_level', '?')}")
-    return Item(source="threatfox", kind="ioc", title=f"{malware} {r.get('ioc_type', '')}".strip(),
-                text=text, seen_at=(r.get("first_seen") or "")[:10], actor=malware,
-                meta={"ioc_type": r.get("ioc_type"), "confidence": r.get("confidence_level")})
+    malware = text(r.get("malware_printable"), 120) or text(r.get("malware"), 120) or "unknown malware"
+    ioc_type = text(r.get("ioc_type"), 40)
+    body = (f"{malware} indicator ({text(r.get('threat_type'), 60)}): {text(r.get('ioc'))} "
+            f"confidence {text(r.get('confidence_level'), 10) or '?'}")
+    confidence = r.get("confidence_level")
+    return Item(source="threatfox", kind="ioc", title=f"{malware} {ioc_type}".strip(),
+                text=body, seen_at=text(r.get("first_seen"))[:10], actor=malware,
+                meta={"ioc_type": ioc_type, "confidence": confidence if isinstance(confidence, (int, float, str)) else None})
 
 
 def parse(body: dict) -> list[Item]:
     """Turn a ThreatFox answer into items, tolerating every shape the API is documented to return."""
+    if not isinstance(body, dict):
+        raise RuntimeError("ThreatFox answered with something that is not a JSON object.")
     status = body.get("query_status")
     if status == "no_result":
         return []
@@ -38,7 +42,7 @@ def parse(body: dict) -> list[Item]:
     data = body.get("data")
     if not isinstance(data, list):
         return []
-    return [_to_item(x) for x in data if isinstance(x, dict) and x.get("ioc")]
+    return [_to_item(x) for x in data if isinstance(x, dict) and text(x.get("ioc"))]
 
 
 def fetch(offline: bool = True, days: int = 1) -> list[Item]:

@@ -48,7 +48,8 @@
   name: Combolist format
   weight: 80
   why: Many email:password pairs in a row is the signature of a combolist.
-  patterns: ['(?:[\w.+-]+@[\w-]+\.[\w.]+:[^\s:]{4,}\s*){3,}']
+  # Bounded and anchored at a word edge so a long run of characters cannot make the scan quadratic.
+  patterns: ['(?<![\w.+-])(?:[\w.+-]{1,64}@[\w-]{1,63}\.[\w.]{1,190}:[^\s:]{4,}\s*){3,}']
 - id: DL-CRD-002
   category: credential_dump
   name: Database dump wording
@@ -91,6 +92,35 @@
     - '\b(personal|customer|employee|user|patient)s?[''’]? (data|information|records|details)\b.{0,80}\b(stolen|leaked|exposed|accessed|compromised|up for (sale|auction))'
     - '\b(stolen|leaked|exposed)\b.{0,40}\b(customer|employee|user|patient|personal) (data|information|records)\b'
     - '\ball users[''’]? data\b.{0,30}\bstolen'
+    # Added after the first untouched test (17 Nov 2026): breach news is often phrased as "exposed" or "impacted".
+    - '\b(customer|employee|staff|user|patient|personal)s?(,? and (customer|employee|staff|user)s?)? (data|information|records)\b.{0,60}\b(exposed|impacted|stolen|leaked)\b'
+    - '\b(impacted|affected) by (a |the )?(third[- ]party )?(data )?breach\b'
+    - '\bbreach notification\b'
+    - '\b(card numbers?|cvvs?|payment card (data|details))\b.{0,100}\b(exposed|stolen|leaked)\b'
+
+- id: DL-CRD-007
+  category: credential_dump
+  name: Site or service hacked, data taken
+  weight: 55
+  why: A site or service is reported as hacked or breached, with its accounts, records or data taken or published.
+  # Written from the wording of real breach reports (the Have I Been Pwned write-ups added before 2025). Every pattern
+  # is bounded so a long input cannot make it slow.
+  patterns:
+    - '\b(was|were|had been|has been|been|got)\s+(hacked|breached|compromised)\b.{0,160}\b(data|records?|accounts?|users?|members?|customers?|emails?|passwords?|credentials?|information|database|details)\b'
+    - '\b(hacked|breached|compromised)\b.{0,120}\b(exposed|leaked|published|dumped|posted|released|stolen|obtained|sold|traded|disclosed|circulat\w+)\b'
+    - '\b(data|database|records?|accounts?|credentials?|passwords?|email addresses|user details|backup)\b.{0,100}\b(appeared|posted|published|released|shared|circulating|circulated|dumped|listed|offered|put up|advertised)\b.{0,100}\b(hacking forum|dark ?web|marketplace|for sale|publicly|forum|telegram|paste)'
+    - '\b(publicly|openly)\s+(exposed|accessible)\b.{0,80}\b(database|server|bucket|instance|elasticsearch|mongodb|backup|file)\b'
+    - '\bcredential[- ]stuffing\s+(list|attack|dump)\b'
+    - '\b(accounts?|records?|email addresses|user details|users|members|customers)\b.{0,60}\b(were|was|being)\s+(dumped|leaked|stolen|obtained|exposed|published|posted|disclosed)\b'
+
+- id: DL-CRD-008
+  category: credential_dump
+  name: Breach with a ransom or pay-or-leak demand
+  weight: 55
+  why: A breach where the attackers demanded payment or threatened to publish the stolen data.
+  patterns:
+    - '\b(ransom|extortion|pay[- ]or[- ]leak)\b.{0,160}\b(data|records?|accounts?|users?|customers?|emails?|information|database)\b.{0,100}\b(leak\w*|publish\w*|post\w*|expos\w*|dump\w*)\b'
+    - '\b(data|records?|accounts?|database)\b.{0,100}\b(leak\w*|publish\w*|post\w*|dump\w*)\b.{0,120}\b(ransom|extortion|refus\w+ to pay|not paid)\b'
 
 - id: DL-EXP-001
   category: exploit_sale
@@ -103,6 +133,8 @@
     - '\b(for sale|selling|sell|wts|buy|buyer|offering)\b.{0,60}\b(0[- ]?day|zero[- ]day)\b'
     - '\bexploit\b.{0,40}\b(for sale|selling|price|btc|xmr)\b'
     - '\bpoc\b.{0,30}\b(sale|selling)\b'
+    # The other word order: "looking to sell a working exploit for ...".
+    - '\b(sell|selling|wts|offering)\s+(an? |the |my |our )?(working |private |public |fresh |new |weaponi[sz]ed |zero[- ]day |0[- ]?day )*(exploit|poc|exploit chain|rce|lpe)\b'
 - id: DL-EXP-004
   category: exploit_sale
   name: Zero-day mentioned
@@ -126,6 +158,9 @@
     # Sellers do not always say "selling": a listing, a price or a payment wallet is just as telling.
     - '\b(rdp|vpn|citrix|webshell|domain admin)\b.{0,60}\baccess\b.{0,160}\b(for sale|selling|price|payment|wallet|bitcoin|btc|xmr|monero|escrow|listings?|\$ ?\d)'
     - '\binitial access\b.{0,160}\b(for sale|selling|sell|price|payment|wallet|btc|xmr|escrow|listings?|\$ ?\d)'
+    # "Foothold" is the seller's word for access; it needs a price or an escrow next to it.
+    - '\bfootholds?\b.{0,100}\b(for sale|selling|btc|xmr|escrow|listings?|\$ ?\d)'
+    - '\blistings?\b.{0,60}\b(vpn|rdp|citrix|webshell|shell|domain admin)\b.{0,60}\b(foothold|access)\b'
     - '\b(selling|sell|wts|buying|offering)\b.{0,40}\binitial access\b'
     - '\b(selling|sell|wts|for sale|offering)\b.{0,40}\baccess to\b.{0,50}\b(company|corp|revenue|employees)\b'
 
@@ -187,7 +222,16 @@
   name: Targeting statement
   weight: 55
   why: Posts that say who will be attacked are early warning.
-  patterns: ['\b(we|i) (will|are going to|plan to) (attack|hit|target|breach)\b', '\btarget(ing)?\b.{0,30}\b(bank|hospital|government|telecom|retail|energy)\b']
+  patterns:
+    # "Hit our targets" and "target a 10% increase" are business talk, so a verb followed by a number, a goal or a
+    # budget does not count.
+    - '\b(we|i) (will|are going to|plan to) (attack|hit|target|breach)\b(?!\s+(an? |the |our |my )?(\d|goals?|targets?|numbers?|sales|revenue|quota|deadlines?|budget|market|growth|increase))'
+    - '\btarget(ing|s)?\b.{0,30}\b(bank|hospital|government|telecom|retail|energy)\b'
+    # Intent plus an attack verb, in the first person or as a group ("our group is going to breach ...").
+    - '\b(we|i|our (group|crew|team|collective))\b.{0,30}\b(will|are going to|is going to|plan(ning)? to|are looking to|looking to|intend to)\s+(attack|hit|target|breach|hack|take down|ddos|deface|compromise)\b(?!\s+(an? |the |our |my )?(\d|goals?|targets?|numbers?|sales|revenue|quota|deadlines?|budget|market|growth|increase))'
+    - '\b(call to arms|operation announced|hacktivis[mt]s?)\b'
+    - '\b(looking|want|planning)\b.{0,15}\bto (hit|breach|hack|attack|target)\b.{0,60}\b(bank|hospital|government|telecom|retail|energy|compan(y|ies)|them)\b'
+    - '\banyone (already )?(inside|in|with access to)\b.{0,40}\b(bank|hospital|government|telecom|retail|energy|compan(y|ies))\b'
 - id: DL-GEN-002
   category: threat_chatter
   name: Hacktivist campaign

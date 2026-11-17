@@ -9,9 +9,12 @@ from collections import OrderedDict
 # Deliberately conservative: precision matters more than recall for alerting.
 RE_URL = re.compile(r"\bhttps?://[^\s<>\"')]+", re.I)
 RE_ONION = re.compile(r"\b[a-z2-7]{56}\.onion\b|\b[a-z2-7]{16}\.onion\b", re.I)
-RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+# The patterns below are bounded (a label is at most 63 characters, a name at most 253, an address local part at most
+# 64) so a long run of dots, letters or digits cannot make a scan quadratic: crafted 20,000-character input used to
+# take several seconds. Real indicators are far inside these limits.
+RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}\b")
 RE_IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-RE_DOMAIN = re.compile(r"\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24})\b", re.I)
+RE_DOMAIN = re.compile(r"\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){1,10}(?:[a-z]{2,24})\b", re.I)
 RE_SHA256 = re.compile(r"\b[a-fA-F0-9]{64}\b")
 RE_SHA1 = re.compile(r"\b[a-fA-F0-9]{40}\b")
 RE_MD5 = re.compile(r"\b[a-fA-F0-9]{32}\b")

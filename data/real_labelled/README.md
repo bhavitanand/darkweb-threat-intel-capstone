@@ -26,3 +26,14 @@ A CSV with a header and two columns:
 - Do not commit files you are not allowed to share. Add them to `.gitignore` if unsure.
 
 `template.csv` shows the shape.
+
+## Real datasets shipped in this folder (used for training and for the honest test)
+
+| File | What | Licence and attribution |
+| --- | --- | --- |
+| `hibp_breaches.csv` | 1,033 real, verified data breaches with their prose write-ups, each labelled `credential_dump`. Spam lists and fabricated entries are excluded. | Breach data from **[Have I Been Pwned](https://haveibeenpwned.com)** by Troy Hunt, licensed [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Descriptions are cleaned of HTML. |
+| `nvd_advisories.csv` | 1,043 real vulnerability descriptions, each labelled `benign`: security vocabulary, but an advisory and not a threat post (see [labelling.md](../../docs/labelling.md)). Withdrawn (`** REJECT **`) entries are excluded. | **[NIST National Vulnerability Database](https://nvd.nist.gov)**, US government data in the public domain. |
+
+Columns: `id, source, added, label, text`. `added` is the date the entry was added to its source, which is what lets the newest period be held out as a test.
+
+Rebuild them with `python -m darklens data build` (needs the internet, no key). Measure with `python -m darklens eval --real`.

@@ -9,3 +9,7 @@ __pycache__
 .pytest_cache
 tests
 docs
+labelling
+tests_real
+.claude
+frontend/.env

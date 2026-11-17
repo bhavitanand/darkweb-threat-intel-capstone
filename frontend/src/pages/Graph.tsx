@@ -21,7 +21,8 @@ function nodeColor(kind: string, score?: number) {
 
 export default function Graph() {
   const graph = useAsync(api.graph);
-  const alerts = useAsync(api.alerts);
+  // Titles for the graph's nodes. The map shows at most 300 alerts, all among the highest-scoring 2,000.
+  const alerts = useAsync(() => api.alerts({ limit: 2000 }).then((p) => p.rows));
   const [selected, setSelected] = useState<string | null>(null);
 
   const placed = useMemo(

@@ -10,11 +10,17 @@
     <meta property="og:title" content="DarkLens - Dark web threat intelligence" />
     <meta property="og:description" content="Scored, explainable alerts about leaks, ransomware claims and exploit sales that concern you." />
     <meta property="og:image" content="/logo.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
+    <!-- The site routes with the #hash. A shared link such as /alerts would otherwise open the overview, so move the path into the hash. -->
+    <script>
+      (function () {
+        var p = location.pathname;
+        if (p !== '/' && !/\.[a-z0-9]+$/i.test(p) && !location.hash) location.replace('/#' + p + location.search);
+      })();
+    </script>
+    <noscript>DarkLens needs JavaScript to show alerts. The source and documentation are on GitHub: github.com/bhavitanand/darkweb-threat-intel-capstone</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

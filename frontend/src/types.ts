@@ -123,7 +123,7 @@ export interface GraphData {
 }
 
 export interface WatchEntry {
-  kind: 'domain' | 'email';
+  kind: 'domain' | 'email' | 'product';
   value: string;
 }
 
@@ -136,6 +136,8 @@ export interface Analysis {
   iocs: Iocs;
   probs: Record<string, number>;
   exposures: { email?: string }[];
+  /** True when the text was longer than the server classifies; indicators were still searched in all of it. */
+  truncated?: boolean;
 }
 
 export interface EvalResult {

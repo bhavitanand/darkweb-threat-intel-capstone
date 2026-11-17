@@ -8,6 +8,10 @@ const SOURCE_NAMES: Record<string, string> = {
   threatfox: 'ThreatFox by abuse.ch (malicious indicators)',
   'cisa-kev': 'CISA Known Exploited Vulnerabilities (software flaws)',
   urlhaus: 'URLhaus by abuse.ch (malware download links)',
+  haveibeenpwned: 'Have I Been Pwned (recent real data breaches)',
+  'security-news': 'Security news feeds (headlines, linked to their source)',
+  openphish: 'OpenPhish (live phishing pages)',
+  feodo: 'Feodo Tracker by abuse.ch (botnet command servers)',
   forums: 'Forum posts',
 };
 

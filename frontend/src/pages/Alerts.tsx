@@ -1,27 +1,80 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { api } from '../api';
+import type { AlertPage } from '../api';
 import { useAsync } from '../hooks';
-import { CATEGORY_META, SEVERITY_META, SEVERITY_ORDER, categoryLabel, filterAlerts } from '../lib';
+import { CATEGORY_META, SEVERITY_META, SEVERITY_ORDER, categoryLabel } from '../lib';
 import { AlertRow } from '../components/AlertRow';
 import SourceCredit from '../components/SourceCredit';
 import { Empty, ErrorBox, Loading, PageHead } from '../components/ui';
 
 const PAGE_SIZE = 100;
 
+/** Wait for typing to pause before asking the server, so each keystroke is not a request. */
+function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = window.setTimeout(() => setV(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
 export default function Alerts() {
-  const { data, error, loading, slow, reload } = useAsync(api.alerts);
+  const stats = useAsync(api.stats);
   const [severity, setSeverity] = useState('');
   const [category, setCategory] = useState('');
   const [q, setQ] = useState('');
   const [source, setSource] = useState('');
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const dq = useDebounced(q.trim());
 
-  const shown = useMemo(() => filterAlerts(data ?? [], { severity, category, q, data: source }), [data, severity, category, q, source]);
-  // Changing a filter starts again from the first page.
-  const onFilter = <T,>(set: (v: T) => void) => (v: T) => { set(v); setLimit(PAGE_SIZE); };
-  const page = shown.slice(0, limit);
-  const present = useMemo(() => Array.from(new Set((data ?? []).map((a) => a.category))), [data]);
+  const [page, setPage] = useState<AlertPage | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [more, setMore] = useState(false);
+  const [tick, setTick] = useState(0);
+  const [slow, setSlow] = useState(false);
+
+  // Filtering and paging happen on the server, so the count is the real total and a page costs the same however many
+  // alerts exist. Any change of filter starts again from the first page.
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    setError(null);
+    const timer = window.setTimeout(() => live && setSlow(true), 4000);
+    api
+      .alerts({ severity, category, q: dq, data: source, limit: PAGE_SIZE, offset: 0 })
+      .then((p) => live && setPage(p))
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : 'Something went wrong.'))
+      .finally(() => {
+        window.clearTimeout(timer);
+        if (live) {
+          setLoading(false);
+          setSlow(false);
+        }
+      });
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [severity, category, dq, source, tick]);
+
+  async function showMore() {
+    if (!page) return;
+    setMore(true);
+    try {
+      const next = await api.alerts({ severity, category, q: dq, data: source, limit: PAGE_SIZE, offset: page.rows.length });
+      setPage({ rows: [...page.rows, ...next.rows.filter((r) => !page.rows.some((x) => x.item_id === r.item_id))], total: next.total });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setMore(false);
+    }
+  }
+
+  const types = Object.keys(stats.data?.by_category ?? {}).sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)));
+  const filtered = Boolean(severity || category || dq || source);
+  const left = page ? page.total - page.rows.length : 0;
 
   return (
     <>
@@ -41,25 +94,25 @@ export default function Alerts() {
       </p>
       <div className="filters">
         <div className="pills" role="group" aria-label="Filter by severity">
-          <button className="pill" aria-pressed={severity === ''} onClick={() => onFilter(setSeverity)('')}>All</button>
+          <button className="pill" aria-pressed={severity === ''} onClick={() => setSeverity('')}>All</button>
           {SEVERITY_ORDER.map((s) => (
-            <button key={s} className="pill" aria-pressed={severity === s} onClick={() => onFilter(setSeverity)(severity === s ? '' : s)}>
+            <button key={s} className="pill" aria-pressed={severity === s} onClick={() => setSeverity(severity === s ? '' : s)}>
               {SEVERITY_META[s].label}
             </button>
           ))}
         </div>
         <div className="field">
           <label htmlFor="cat">Type</label>
-          <select id="cat" value={category} onChange={(e) => onFilter(setCategory)(e.target.value)}>
+          <select id="cat" value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">All types</option>
-            {present.map((c) => (
+            {types.map((c) => (
               <option key={c} value={c}>{CATEGORY_META[c]?.label ?? categoryLabel(c)}</option>
             ))}
           </select>
         </div>
         <div className="field">
           <label htmlFor="src">Data</label>
-          <select id="src" value={source} onChange={(e) => onFilter(setSource)(e.target.value)}>
+          <select id="src" value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="">Real and demo</option>
             <option value="real">Real feeds only</option>
             <option value="demo">Demo samples only</option>
@@ -67,32 +120,34 @@ export default function Alerts() {
         </div>
         <div className="field">
           <label htmlFor="q">Search</label>
-          <input id="q" type="search" placeholder="Company, poster, word..." value={q} onChange={(e) => onFilter(setQ)(e.target.value)} />
+          <input id="q" type="search" placeholder="Company, poster, word..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       </div>
 
-      {loading && !data && <Loading what="alerts" slow={slow} />}
-      {error && <ErrorBox message={error} onRetry={reload} />}
-      {data && (
+      {loading && !page && <Loading what="alerts" slow={slow} />}
+      {error && <ErrorBox message={error} onRetry={() => setTick((t) => t + 1)} />}
+      {page && !error && (
         <>
           <p className="muted" aria-live="polite">
-            Showing {page.length} of {shown.length}{shown.length !== data.length ? ` matching (${data.length} in total)` : ''}
+            Showing {page.rows.length.toLocaleString()} of {page.total.toLocaleString()}
+            {filtered ? ' matching' : ''}
+            {loading ? ' (updating...)' : ''}
           </p>
-          {shown.length ? (
+          {page.rows.length ? (
             <>
               <ul className="alert-list">
-                {page.map((a) => (
+                {page.rows.map((a) => (
                   <li key={a.item_id}><AlertRow a={a} /></li>
                 ))}
               </ul>
-              {shown.length > page.length && (
+              {left > 0 && (
                 <div className="row" style={{ justifyContent: 'center', marginTop: 16 }}>
-                  <button className="btn btn-ghost" onClick={() => setLimit(limit + PAGE_SIZE)}>
-                    Show {Math.min(PAGE_SIZE, shown.length - page.length)} more ({shown.length - page.length} left)
+                  <button className="btn btn-ghost" onClick={showMore} disabled={more}>
+                    {more ? 'Loading...' : `Show ${Math.min(PAGE_SIZE, left).toLocaleString()} more (${left.toLocaleString()} left)`}
                   </button>
                 </div>
               )}
-              <SourceCredit alerts={page} />
+              <SourceCredit alerts={page.rows} />
             </>
           ) : (
             <Empty title="Nothing matches those filters">Clear a filter or try a different word.</Empty>

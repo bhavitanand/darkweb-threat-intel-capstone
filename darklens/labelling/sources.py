@@ -82,7 +82,11 @@ def parse_feed(xml, source: str, kind: str) -> list[dict]:
         if not title:
             continue
         text = title if not summary or summary.lower().startswith(title.lower()[:40]) else f"{title}. {summary}"
-        out.append({"text": text, "source": source, "kind": kind})
+        link = fields.get("link") or ""
+        if not link:  # Atom puts the address in an attribute: <link href="...">
+            link = next((c.get("href") or "" for c in el if _local(c.tag) == "link" and c.get("href")), "")
+        date = fields.get("pubDate") or fields.get("published") or fields.get("updated") or fields.get("date") or ""
+        out.append({"text": text, "source": source, "kind": kind, "title": title, "link": link.strip(), "date": date.strip()})
     return out
 
 

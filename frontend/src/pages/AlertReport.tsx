@@ -14,7 +14,19 @@ export default function AlertReport({ id }: { id: string }) {
     <>
       <a className="back" href="#/alerts"><ArrowLeft size={16} aria-hidden="true" /> All alerts</a>
       {loading && !a && <Loading what="the report" slow={slow} />}
-      {error && <ErrorBox message={error} onRetry={reload} />}
+      {error && /not found/i.test(error) ? (
+        <div className="state" role="status">
+          <div>
+            <strong>We could not find that alert</strong>
+            <p className="muted">
+              The link may be mistyped, or the alert may have expired: old alerts are removed after a while. Go back to the list
+              to see what is current.
+            </p>
+          </div>
+        </div>
+      ) : (
+        error && <ErrorBox message={error} onRetry={reload} />
+      )}
       {a && (
         <div className="stack">
           <header>

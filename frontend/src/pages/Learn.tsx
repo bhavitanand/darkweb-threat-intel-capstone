@@ -89,8 +89,33 @@ export default function Learn() {
             </li>
             <li>11 of the 12 real threats in that set are still detected.</li>
             <li>
+              The honest test came next. On 177 fresh items collected a day later and scored once before any change, DarkLens
+              raised no alert on 113 ordinary items, but missed 3 of 9 real breach reports. The rule was fixed afterwards, so
+              that set is now used up, and with 9 threats it is a warning rather than a rate.
+            </li>
+            <li>
               Four kinds of threat (exploit sales, malware sales, card fraud and chatter) had no real examples at all, so they
               are not measured. News about attacks is not the same as underground posts.
+            </li>
+          </ul>
+        </Section>
+
+        <Section
+          title="Trained and tested on real data"
+          hint="1,033 real breach write-ups (Have I Been Pwned, CC BY 4.0) and 1,043 real vulnerability advisories (NIST NVD, public domain)."
+        >
+          <ul>
+            <li>
+              Trained only on breaches from before 2026, DarkLens recognised and correctly labelled <strong>all 117 breaches
+              added in 2026</strong> that it had never seen. The first version labelled 36% of them correctly.
+            </li>
+            <li>
+              On vulnerability advisories it had never seen, it raised <strong>no false alarms</strong> (the first version
+              raised 9.9%). A patch notice is not a threat, and the advisories taught it that.
+            </li>
+            <li>
+              Breach write-ups share one writing style, so those figures flatter it. News from other sources, a different style,
+              is where we check it independently, and it also does well, though those sets are small.
             </li>
           </ul>
         </Section>
@@ -100,7 +125,7 @@ export default function Learn() {
             <li>The test posts are synthetic, so real-world accuracy will be lower than these figures.</li>
             <li>It reads text only. It does not visit dark web sites, and it never stores real stolen data.</li>
             <li>A score is a guide for where to look first, not proof that something happened.</li>
-            <li>Alerts are kept in a small database that resets when the free server restarts.</li>
+            <li>There are no accounts yet: the watchlist is shared by every visitor, so only add things you are happy to make public.</li>
           </ul>
         </Section>
       </div>

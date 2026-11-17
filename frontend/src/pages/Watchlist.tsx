@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Globe, Mail, Plus } from 'lucide-react';
+import { Globe, Mail, Package, Plus } from 'lucide-react';
 import { api } from '../api';
 import { useAsync } from '../hooks';
 import { cleanWatchValue } from '../lib';
@@ -24,7 +24,13 @@ export default function Watchlist() {
     setNote(null);
     const clean = cleanWatchValue(kind, value);
     if (!clean) {
-      setProblem(kind === 'domain' ? 'That does not look like a domain. Try something like example.com.' : 'That does not look like an email address.');
+      setProblem(
+        kind === 'domain'
+          ? 'That does not look like a domain. Try something like example.com.'
+          : kind === 'product'
+            ? 'Use a product or vendor name of at least 3 letters, such as screenconnect or fortinet.'
+            : 'That does not look like an email address.',
+      );
       return;
     }
     setBusy(true);
@@ -43,7 +49,7 @@ export default function Watchlist() {
     <>
       <PageHead
         title="Your watchlist"
-        sub="Tell DarkLens which domains and email addresses are yours. Any post that mentions them, or that contains leaked logins for them, jumps to the top."
+        sub="Tell DarkLens which domains, email addresses and software are yours. Any post that mentions them, that contains leaked logins for them, or that reports an attack on software you run, jumps to the top."
       />
       <div className="state state-warn" role="note" style={{ marginBottom: 16 }}>
         <div>
@@ -60,14 +66,15 @@ export default function Watchlist() {
             <div className="row" role="group" aria-label="What to watch">
               <button type="button" className="pill" aria-pressed={kind === 'domain'} onClick={() => setKind('domain')}>Website domain</button>
               <button type="button" className="pill" aria-pressed={kind === 'email'} onClick={() => setKind('email')}>Email address</button>
+              <button type="button" className="pill" aria-pressed={kind === 'product'} onClick={() => setKind('product')}>Software or vendor</button>
             </div>
             <div>
-              <label htmlFor="wv">{kind === 'domain' ? 'Domain' : 'Email'}</label>
+              <label htmlFor="wv">{kind === 'domain' ? 'Domain' : kind === 'product' ? 'Software or vendor name' : 'Email'}</label>
               <input
                 id="wv"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder={kind === 'domain' ? 'yourcompany.com' : 'you@yourcompany.com'}
+                placeholder={kind === 'domain' ? 'yourcompany.com' : kind === 'product' ? 'screenconnect' : 'you@yourcompany.com'}
                 autoComplete="off"
                 aria-describedby="wv-help"
               />
@@ -89,7 +96,7 @@ export default function Watchlist() {
             <ul className="ioc-values">
               {shown.map((w) => (
                 <li key={`${w.kind}:${w.value}`} className="row">
-                  {w.kind === 'domain' ? <Globe size={15} aria-label="domain" /> : <Mail size={15} aria-label="email" />}
+                  {w.kind === 'domain' ? <Globe size={15} aria-label="domain" /> : w.kind === 'product' ? <Package size={15} aria-label="software" /> : <Mail size={15} aria-label="email" />}
                   <span>{w.value}</span>
                 </li>
               ))}

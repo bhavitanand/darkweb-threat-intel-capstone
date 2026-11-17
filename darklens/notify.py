@@ -60,11 +60,19 @@ def pending(con, channel: str) -> list[dict]:
     return out
 
 
+def _clean(s, limit: int) -> str:
+    """Alert text comes from the internet: one line, no control characters, bounded. Keeps a message accepted by the
+    channel and keeps a newline in a title from ever reaching an email header."""
+    s = "".join(" " if (ch.isspace() or ord(ch) < 32 or 0x7F <= ord(ch) < 0xA0) else ch for ch in str(s or ""))
+    s = " ".join(s.split())
+    return s if len(s) <= limit else s[: limit - 1] + "…"
+
+
 def format_message(a: dict) -> str:
     base = os.environ.get("PUBLIC_APP_URL", "").rstrip("/")
     link = f"\n{base}/#/alerts/{a['id']}" if base else ""
     kind = "About your watchlist. " if a["watch"] else ""
-    return f"DarkLens {a['severity'].upper()} {a['score']}/100: {a['title']}\n{kind}{a['why']}{link}"
+    return f"DarkLens {a['severity'].upper()} {a['score']}/100: {_clean(a['title'], 200)}\n{kind}{_clean(a['why'], 500)}{link}"
 
 
 def send_webhook(url: str, text: str) -> None:
@@ -96,6 +104,14 @@ def _send(channel: str, text: str) -> None:
         send_email(text.splitlines()[0][:150], text)
 
 
+def _rejected(e: Exception) -> bool:
+    """True when the failure is about the message itself, not about the channel being down."""
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    if isinstance(status, int) and 400 <= status < 500 and status not in (408, 429):
+        return True
+    return isinstance(e, (ValueError, smtplib.SMTPDataError, smtplib.SMTPRecipientsRefused)) and not isinstance(e, smtplib.SMTPServerDisconnected)
+
+
 def dispatch(con) -> int:
     """Send what is pending on every configured channel. Failures are logged and retried on the next run."""
     sent = 0
@@ -105,6 +121,12 @@ def dispatch(con) -> int:
             try:
                 _send(ch, format_message(a))
             except Exception as e:  # noqa: BLE001
+                if _rejected(e):
+                    # The channel answered and refused THIS message (a client error, or a message the mail library
+                    # will not build). Retrying it can never work and would block every later alert, so give up on it.
+                    log.warning("notify %s rejected alert %s (%s); skipping it", ch, a["id"], type(e).__name__)
+                    db.notified_add(con, a["id"], ch, now_iso())
+                    continue
                 log.warning("notify %s failed: %s", ch, type(e).__name__)
                 break  # the channel is probably down; try again next run
             db.notified_add(con, a["id"], ch, now_iso())

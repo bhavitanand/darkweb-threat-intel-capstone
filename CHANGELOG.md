@@ -2,6 +2,49 @@
 
 All notable changes. Dates are when the change was made.
 
+## [Unreleased] - 2026-11-17
+
+### Added
+- **Watch your software.** The watchlist now takes product and vendor names ("Software or vendor"). A report of an exploit, breach or attack on something you run, or a CISA-listed exploited flaw in it, is High instead of Low; a passing mention is only a Low hint. Whole-word matching, so short names do not fire inside other words.
+- **Alerts paging and filtering in the database:** `GET /api/alerts` takes `offset`, filters severity, category and text before limiting (previously it limited first, so a filter could hide matches), and returns the match count in `X-Total-Count`.
+- The first **untouched real-data test** (177 items first collected on 17 November) is reported in `docs/accuracy.md`: no false alarms on 113 ordinary items, but 3 of 9 real breach reports missed.
+
+- **Real-data test suite** (`tests_real/`): every component on the collected real items (robustness, determinism, speed, indicators, masking, the whole API, exports, hidden-text guarantee), accuracy floors on the labelled real sets, and a smoke test of the deployed site on its live feeds.
+- Website: the Alerts page filters and pages on the server and shows the true total (it used to say "of 1000" when 4,762 existed); the Overview asks for five alerts instead of downloading a thousand; per-page browser titles; a shared link such as `/alerts` now opens the right page; security headers; fonts bundled instead of loaded from Google; four one-click examples on "Check a post" (two threats, two everyday stories).
+
+### Added (a wider net, no keys needed)
+- **Four new live sources that need no key**, so a live site has real data immediately: **Have I Been Pwned** recent real breaches (CC BY 4.0, credited), **17 security news feeds** (headline, short summary and a link; flagged `no_redistribute`, so never returned, searched or exported), **OpenPhish** live phishing pages, and the **Feodo Tracker** botnet list. CISA's exploited flaws are enriched with **EPSS**, the modelled chance of exploitation in the next 30 days. A first live run with no keys collected about 380 items and raised about 240 alerts in 28 seconds.
+- A new item kind, `breach_report`: a public, verified breach list is itself evidence, so those are always credential dumps with a "Listed as a real data breach" signal.
+- The site footer credits every source; the status card names each one.
+
+### Added (accuracy on real data)
+- **Real training and test data, free and redistributable:** `data/real_labelled/hibp_breaches.csv` (1,033 real breaches, Have I Been Pwned, CC BY 4.0) and `nvd_advisories.csv` (1,043 real vulnerability advisories, NIST NVD, public domain). `python -m darklens data build` refreshes them; `python -m darklens eval --real` runs the honest protocol (train before 2026, test on breaches and advisories never seen); `tests/test_real_accuracy_gates.py` enforces it in CI.
+- **The text model is now trained on real text** (breaches as `credential_dump`, advisories as benign hard negatives, down-weighted so the eight classes stay balanced; balanced class weights). On unseen 2026 breaches: detected and correctly typed 36% to 100%; unseen advisories wrongly alerting 9.9% to 0%; untouched news set: 9 of 9 real threats right (was 8 of 9 detected).
+- New rules written from the wording of real breach reports (`DL-CRD-007` hacked or breached with data taken, `DL-CRD-008` breach with a ransom demand), plus sale and planning wording that was missing: "sell a working exploit", "foothold" with a price or escrow, group attack intent, "call to arms". Business talk ("target a 10% increase", "hit our targets") is excluded. The rule boost is re-tuned (8 to 12) and a strong rule now suppresses "benign" harder.
+- Fixes found on the way: the classifier file (now 8 MB) was reloaded from disk on every analysis, including every `/api/analyse` request; it is cached in memory. `save()` ignored a redirected model path. The NVD cleaner did not skip `** REJECT **` entries.
+- Honest changes to what we claim: the synthetic held-out score is no longer an independent test (the rules alone score 1.0 on it after being extended), so it is a regression check; see `docs/accuracy.md`.
+
+### Fixed (edge cases)
+- **Slow input.** Crafted 20,000-character text took 6 to 13 seconds to analyse (quadratic regexes in the domain and email extractors, the combolist rule and the password masker), enough for one client to pin the server. All are bounded and anchored now; the worst of 38 hostile inputs takes 0.08 seconds. Only the first 5,000 characters of a very long text are classified (indicators and watchlist matches still search all of it), and the result and the page say so.
+- A huge `offset` crashed `/api/alerts` with a 500; it is clamped.
+- A malformed link such as `/#/alerts/%E0%A4%A` blanked the whole page (`decodeURIComponent` threw while rendering).
+- Server validation errors showed as "[object Object]"; they are now sentences. Over-long pasted text is caught before sending, with a counter. Rate limiting and a sleeping server get plain-language messages, and the status badge re-checks every 30 seconds instead of staying "online" after an outage. A missing alert explains that old alerts expire.
+- One malformed record (a number where text is expected, a list, an enormous string) in a live feed crashed that source's whole collection; every parser now coerces and bounds fields and skips only the bad record. A damaged feed cache file is refetched instead of failing, and cache writes are atomic.
+- A notification the channel refuses (a 4xx) was retried forever and silenced every later alert; it is now skipped, while network and server errors are still retried. Titles are cleaned to one bounded line, so a newline can never reach an email header.
+- CSV export also neutralises formulas hidden behind leading spaces or invisible characters.
+- Watchlist validation: domains with a leading or trailing hyphen or a label over 63 characters are refused; names such as `c++` and `asp.net` are accepted.
+- Search over alerts could have revealed whether hidden Ransomware.live text contained a word; hidden text is now excluded from search.
+- Adding a watchlist entry re-scored every stored item (about 16 seconds at 4,800 alerts, under a global lock, open to anyone). It now re-scores only the items that mention the entry, and the shared list is capped at 100.
+- "Check a post" ignored watched software.
+- Live collection through the API was open to anyone when no token was configured; it now needs `INGEST_TOKEN`, compared in constant time.
+- Overview tile "Alerts raised" counted 4,461 lone feed indicators as alerts; they are now shown separately. The "Stolen logins" description no longer claims a list is being sold for a breach news story.
+- A routine "vendor fixes a bug" story no longer reads as an emergency for someone watching that vendor (High needs an attack or breach; a patch or flaw is Medium).
+- Dockerfile runs as a non-root user and has a health check; dependency versions have upper bounds.
+
+### Changed
+- Rule `DL-CRD-006` also recognises breach news worded as data "exposed", "impacted by a breach", "breach notification" and exposed card numbers, with regression tests and ordinary-text guards. This was written after seeing the 17 November set, so that set is now spent and the post-fix figure is not an honest test.
+- `docs/labelling.md` now states how disagreements between labellers are handled.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

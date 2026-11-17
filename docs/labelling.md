@@ -50,6 +50,15 @@ Public security news is full of reports of attacks that fit none of the eight cl
 
 Examples of `skip`: "Attackers exploit a flaw in a chat server", "Researchers analyse a new infostealer", "Police take down servers behind a malware loader". Examples of `benign`: "Microsoft fixes 1,100 vulnerabilities this month", "How to spot a tax scam", a football result.
 
+## What to do when labellers disagree
+
+Across four labellers, 29 of the first 300 items were contested (14 of 177 on the 17 November set). Almost all were the benign-versus-skip line. The rules, applied in this order:
+
+1. **Only unanimous items are scored** (`agreed.csv`). Contested items are listed in `contested.csv` and left out; nothing is decided by majority for the headline numbers. A majority-vote score (ties left out) is reported only as a sensitivity check.
+2. **A contested item that turns out to be a real threat is never quietly dropped.** It is reported as a count ("6 contested threat items") so the detection rate is not flattered by removing hard cases.
+3. **Guidance to reduce future splits** (not a retroactive relabel): a security *roundup, podcast, vendor product launch or funding story* is `benign`; a *trend or statistics report about attacks* and a *named incident with no stated data theft* are `skip`; an *article that only explains how attacks work, with no victim* is `skip` unless it is advice for the public, which is `benign`.
+4. The policy is fixed before a new set is labelled, never edited to make a score look better.
+
 ## Machine-assisted labels, and checking them
 
 With five busy people, the first set of labels for the 300 collected items was produced by four AI labellers (two Claude passes, one ChatGPT pass and one Gemini pass) working independently of each other and of DarkLens's own model, using the policy above. These are **silver labels**: useful for finding problems quickly, but not ground truth. The extra labellers are added with:

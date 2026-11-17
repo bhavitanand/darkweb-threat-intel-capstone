@@ -62,7 +62,7 @@ Render's free tier sleeps after 15 minutes without traffic. Add an UptimeRobot *
 | `FEED_RETENTION_DAYS` | Render | Delete indicator-feed entries (ThreatFox, URLhaus) older than this. `0` = keep | `14` |
 | `RANSOMWARE_LIVE_API_KEY` | Render | Enables live Ransomware.live claims. Free key from <https://my.ransomware.live>. Required by their terms | unset (skipped) |
 | `ABUSECH_AUTH_KEY` | Render | Enables ThreatFox. Free key from <https://auth.abuse.ch/> | unset (skipped) |
-| `INGEST_TOKEN` | Render | If set, `POST /api/ingest` needs header `X-Ingest-Token` | unset (open) |
+| `INGEST_TOKEN` | Render | If set, `POST /api/ingest` needs header `X-Ingest-Token`. Without it, live collection through the API is refused (scheduled collection is unaffected) | unset |
 | `RATE_LIMIT_PER_MIN` | Render | Reads per client per minute. `0` = off | `120` |
 | `RATE_LIMIT_WRITE_PER_MIN` | Render | Writes per client per minute. `0` = off | `20` |
 | `TRUST_PROXY` | Render | `1` = take the client address from `X-Forwarded-For` (set on Render) | off |

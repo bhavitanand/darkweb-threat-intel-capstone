@@ -17,6 +17,10 @@ BREACH = [
     "Customer data exposed after a third party supplier was compromised",
     "Employee data was leaked online and put up for auction by a threat actor",
     "The agency admits all users’ data is stolen",
+    # Wording missed on the first untouched test set (17 Nov 2026)
+    "Infoblox customer and staff data exposed in Sharepoint breach. The company is investigating",
+    "Uber says nearly 150,000 impacted by third-party breach. In breach notification letters, the rideshare company said",
+    "Fandango Warns Ticket Buyers of Payment Card Data Exposure. Card numbers, CVVs, expiration dates may have been exposed",
 ]
 EXTORTION = [
     "An extortion group claims theft of nearly a billion customer records",
@@ -30,6 +34,9 @@ ORDINARY = [
     "The football club announced a new stadium sponsor today",
     "Patch Tuesday fixes an actively exploited zero-day in Outlook",
     "Researchers explain how attackers gain VPN access using stolen credentials",
+    "Is it safe to upload my passport or ID online? Here is how to minimize the risk",
+    "Avoid this Black Friday scam: how to check your card details are safe",
+    "Staff information is available in the intranet directory for all employees",
 ]
 
 
@@ -73,4 +80,6 @@ def test_the_rule_boost_is_a_class_setting_and_changing_it_changes_the_fusion(mo
 
 def test_the_shipped_settings_are_the_measured_ones():
     """These were chosen from data (see docs/accuracy.md); changing them should be a deliberate, measured act."""
-    assert ThreatClassifier.RULE_BOOST == 8.0 and pipeline.UNCERTAIN_BELOW == 0.6
+    from darklens.nlp import classifier
+    assert ThreatClassifier.RULE_BOOST == 12.0 and ThreatClassifier.BENIGN_SUPPRESSION == 0.95 and pipeline.UNCERTAIN_BELOW == 0.6
+    assert classifier.REAL_WEIGHT == 0.15 and classifier.REAL_NVD_WEIGHT == 0.02

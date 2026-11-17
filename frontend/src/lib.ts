@@ -45,8 +45,8 @@ export const CATEGORY_META: Record<string, { label: string; blurb: string }> = {
     blurb: 'A criminal group says it locked or stole data from an organisation and is threatening to publish it.',
   },
   credential_dump: {
-    label: 'Stolen logins',
-    blurb: 'A list of stolen emails and passwords is being shared or sold.',
+    label: 'Stolen logins or data',
+    blurb: 'Stolen logins or personal data: a list of emails and passwords being shared or sold, or a report that customer or staff data was stolen or exposed.',
   },
   exploit_sale: {
     label: 'Exploit for sale',
@@ -181,12 +181,16 @@ export function mostWorrying(alerts: Alert[], n = 5): Alert[] {
   return [...(real.length ? real : alerts)].sort((x, y) => y.score - x.score).slice(0, n);
 }
 
-/** Domain or email, as the watchlist accepts them. Returns the cleaned value or null. */
-export function cleanWatchValue(kind: 'domain' | 'email', raw: string): string | null {
+/** Domain, email or product name, as the watchlist accepts them. Returns the cleaned value or null. */
+export function cleanWatchValue(kind: 'domain' | 'email' | 'product', raw: string): string | null {
   const v = raw.trim().toLowerCase();
+  if (kind === 'product') {
+    const p = v.replace(/\s+/g, ' ');
+    return /^[a-z0-9][a-z0-9 .+_#-]{1,58}[a-z0-9+#]$/.test(p) ? p : null;
+  }
   if (kind === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
   const d = v.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  return /^([a-z0-9-]+\.)+[a-z]{2,}$/.test(d) ? d : null;
+  return /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(d) ? d : null;
 }
 
 // ---------- graph layout ----------

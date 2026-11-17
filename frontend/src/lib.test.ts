@@ -12,7 +12,7 @@ const mk = (over: Partial<Alert>): Alert => ({
 
 describe('labels', () => {
   it('uses plain names for known categories and prettifies unknown ones', () => {
-    expect(categoryLabel('credential_dump')).toBe('Stolen logins');
+    expect(categoryLabel('credential_dump')).toBe('Stolen logins or data');
     expect(categoryLabel('new_thing')).toBe('New thing');
     expect(categoryLabel('ioc_feed')).toBe('Known bad indicator');
     expect(categoryLabel('uncertain')).toBe('Not sure');
@@ -121,6 +121,10 @@ describe('cleanWatchValue', () => {
     expect(cleanWatchValue('domain', 'localhost')).toBeNull();
     expect(cleanWatchValue('email', 'a@b')).toBeNull();
     expect(cleanWatchValue('email', ' Me@Example.com ')).toBe('me@example.com');
+    expect(cleanWatchValue('product', '  ScreenConnect ')).toBe('screenconnect');
+    expect(cleanWatchValue('product', 'N-able  N-central')).toBe('n-able n-central');
+    expect(cleanWatchValue('product', 'ab')).toBeNull();
+    expect(cleanWatchValue('product', '<script>')).toBeNull();
   });
 });
 

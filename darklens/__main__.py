@@ -7,6 +7,8 @@
   eval --csv FILE           score it on your own labelled data (columns: text,label)
   eval --feedback           score it on labels given by reviewers in the app
   eval --live-claims        check it against real Ransomware.live claims (needs network)
+  eval --real                 honest real-data test: train before 2026, measure on breaches and advisories never seen
+  data build                  fetch the real breach write-ups and advisories used for training (needs the internet)
   eval --csv FILE --pipeline  score the whole product (alerts, "Not sure", false alarms) on your labelled data
   label pool                gather public text for a real labelled set  (see docs/labelling.md)
   label sheets NAMES        write one labelling sheet per person, e.g. label sheets bhavit,krish,naisha
@@ -35,9 +37,19 @@ def main():
     if cmd == "train":
         from .nlp.classifier import train_default
         train_default(); print("model trained")
+    elif cmd == "data":
+        from .nlp import realdata
+        if len(sys.argv) > 2 and sys.argv[2] == "build":
+            print(realdata.build())
+        else:
+            print("python -m darklens data build   # fetch the real breach write-ups and advisories into data/real_labelled/")
     elif cmd == "eval":
         from .nlp.classifier import evaluate, get_classifier
-        if "--csv" in sys.argv and "--pipeline" in sys.argv:
+        if "--real" in sys.argv:
+            from .nlp import realeval
+            for k, v in realeval.holdout_report().items():
+                print(f"{k}: {v}")
+        elif "--csv" in sys.argv and "--pipeline" in sys.argv:
             from . import pipeline
             from .nlp import realeval
             r = realeval.score_pipeline(get_classifier(), *realeval.load_csv(_opt("--csv")), analyse=pipeline.analyse)

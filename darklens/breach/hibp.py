@@ -12,7 +12,9 @@ from __future__ import annotations
 import hashlib
 import re
 
-RE_COMBO = re.compile(r"([\w.+-]+@[\w-]+\.[\w.]+):(\S{3,})")
+# The address part is bounded and must start at a word edge, so a long run of characters cannot make the scan
+# quadratic. The password part is deliberately NOT bounded: all of it must be masked before anything is stored.
+RE_COMBO = re.compile(r"(?<![\w.+-])([\w.+-]{1,64}@[\w-]{1,63}\.[\w.]{1,190}):(\S{3,})")
 
 
 def sha1_upper(password: str) -> str:

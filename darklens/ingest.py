@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import notify, pipeline
-from .collectors import cisa_kev, forums, ransomware_live, threatfox, urlhaus
+from .collectors import cisa_kev, feodo, forums, hibp, news, openphish, ransomware_live, threatfox, urlhaus
 from .models import Item, now_iso
 from .store import db
 
@@ -46,7 +46,9 @@ def run_ingest(live: bool, con=None) -> dict:
     items: list[Item] = []
     sources: list[dict] = []
     for name, fn in (("ransomware.live", ransomware_live.fetch), ("threatfox", threatfox.fetch),
-                     ("urlhaus", urlhaus.fetch), ("cisa-kev", cisa_kev.fetch), ("forums", forums.fetch)):
+                     ("urlhaus", urlhaus.fetch), ("cisa-kev", cisa_kev.fetch),
+                     ("haveibeenpwned", hibp.fetch), ("security-news", news.fetch), ("openphish", openphish.fetch),
+                     ("feodo", feodo.fetch), ("forums", forums.fetch)):
         got, status = _collect_one(name, fn, live)
         if not live:
             for it in got:
