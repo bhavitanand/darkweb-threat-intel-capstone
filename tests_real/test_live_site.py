@@ -49,6 +49,11 @@ def get(path, timeout=90):
 
 @pytest.fixture(scope="module", autouse=True)
 def _online():
+    # CI tests the code, not the deployment: every push redeploys the host at the same moment CI runs, so the live site is
+    # restarting (502s, a cold model load) exactly when it would be judged. Run these by hand after a deploy, or set
+    # DARKLENS_LIVE_IN_CI=1 to force them.
+    if os.environ.get("CI") and not os.environ.get("DARKLENS_LIVE_IN_CI"):
+        pytest.skip("live-site smoke tests are not run in CI (the deployment is restarting while CI runs)")
     try:
         get("/api/health")
     except (urllib.error.URLError, TimeoutError, OSError) as e:
