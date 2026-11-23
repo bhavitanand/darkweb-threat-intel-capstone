@@ -147,3 +147,45 @@ export interface EvalResult {
   hybrid: number;
   note: string;
 }
+
+export interface ApiKeyRecord {
+  id: string;
+  label: string;
+  created_at: string;
+  last_used: string;
+}
+
+export interface WorkspaceView {
+  id: string;
+  name: string;
+  digest: 'off' | 'daily' | 'weekly';
+  notify_min: 'low' | 'medium' | 'high' | 'critical';
+  webhook_url: string;
+  entries: WatchEntry[];
+  api_keys: ApiKeyRecord[];
+  email_ready: boolean;
+  limits: { entries: number; api_keys: number };
+}
+
+export interface MeResponse {
+  email: string;
+  workspace: WorkspaceView;
+}
+
+export interface WorkspaceAlert {
+  item_id: string;
+  title: string;
+  source: string;
+  url: string;
+  seen_at: string;
+  org: string;
+  actor: string;
+  category: string;
+  severity: Severity;
+  score: number;
+  demo: boolean;
+  restricted: boolean;
+  text: string;
+  matched: string[];
+  reasons: { name: string; why: string }[];
+}

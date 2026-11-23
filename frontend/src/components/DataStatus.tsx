@@ -12,6 +12,7 @@ const SOURCE_NAMES: Record<string, string> = {
   'security-news': 'Security news feeds (headlines, linked to their source)',
   openphish: 'OpenPhish (live phishing pages)',
   feodo: 'Feodo Tracker by abuse.ch (botnet command servers)',
+  'github-advisories': 'GitHub Advisory Database (open-source package flaws, CC BY 4.0)',
   forums: 'Forum posts',
 };
 

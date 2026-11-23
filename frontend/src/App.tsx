@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Compass, Eye, LayoutDashboard, Network, ScanSearch, ShieldAlert } from 'lucide-react';
+import { BookOpen, Briefcase, Compass, Eye, LayoutDashboard, Network, ScanSearch, ShieldAlert } from 'lucide-react';
 import { BASE } from './api';
 import { RANSOMWARE_LIVE_URL, REPO_URL } from './lib';
 import { useRoute } from './store';
@@ -12,6 +12,8 @@ import Watchlist from './pages/Watchlist';
 import Analyse from './pages/Analyse';
 import Learn from './pages/Learn';
 import Start from './pages/Start';
+import SignIn from './pages/SignIn';
+import Workspace from './pages/Workspace';
 
 const DEFAULT_TITLE = document.title;
 
@@ -22,6 +24,7 @@ const NAV = [
   { name: 'graph', href: '#/graph', label: 'Connections', Icon: Network },
   { name: 'watchlist', href: '#/watchlist', label: 'Watchlist', Icon: Eye },
   { name: 'analyse', href: '#/analyse', label: 'Check a post', Icon: ScanSearch },
+  { name: 'workspace', href: '#/workspace', label: 'Workspace', Icon: Briefcase },
   { name: 'learn', href: '#/learn', label: 'How it works', Icon: BookOpen },
 ] as const;
 
@@ -67,13 +70,15 @@ function page(route: Route) {
     case 'watchlist': return <Watchlist />;
     case 'analyse': return <Analyse />;
     case 'learn': return <Learn />;
+    case 'signin': return <SignIn token={route.token} />;
+    case 'workspace': return <Workspace />;
     default: return <Overview />;
   }
 }
 
 export default function App() {
   const route = useRoute();
-  const current = route.name === 'alert' ? 'alerts' : route.name;
+  const current = route.name === 'alert' ? 'alerts' : route.name === 'signin' ? 'workspace' : route.name;
 
   useEffect(() => {
     window.scrollTo(0, 0);

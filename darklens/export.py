@@ -136,3 +136,75 @@ def to_stix(alerts: list[dict], now: datetime | None = None) -> dict:
         objects.append(report)
     objects += list(seen.values())
     return {"type": "bundle", "id": _sid("bundle", stamp + str(len(alerts))), "objects": objects}
+
+
+# ---------------- MISP ----------------
+
+_MISP_TYPES = {
+    "ipv4": "ip-dst", "domain": "domain", "onion": "domain", "url": "url", "email": "email-src",
+    "sha256": "sha256", "sha1": "sha1", "md5": "md5", "cve": "vulnerability", "btc": "btc", "xmr": "xmr",
+}
+_MISP_THREAT = {"critical": "1", "high": "1", "medium": "2", "low": "3", "info": "3"}
+
+
+def to_misp(alerts: list[dict]) -> dict:
+    """MISP event JSON (the format MISP's "import feed" and its API accept): one event per alert, with one
+    attribute per indicator. Wallet types MISP has no type for (eth, trx) are left out."""
+    events = []
+    for a in alerts:
+        attrs, seen = [], set()
+        for t, vals in (a.get("iocs") or {}).items():
+            mt = _MISP_TYPES.get(t)
+            if not mt:
+                continue
+            for v in vals:
+                if (mt, v) in seen:
+                    continue
+                seen.add((mt, v))
+                attrs.append({"type": mt, "category": "Network activity" if mt != "vulnerability" else "External analysis",
+                              "value": v, "to_ids": mt not in ("vulnerability",), "comment": "DarkLens"})
+        date = (a.get("seen_at") or a.get("created_at") or "")[:10]
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        events.append({"Event": {
+            "uuid": str(uuid.uuid5(_NS, "misp|" + str(a["item_id"]))), "info": (a.get("title") or "Untitled alert")[:200],
+            "date": date, "threat_level_id": _MISP_THREAT.get(a.get("severity"), "3"), "analysis": "1", "published": False,
+            "Tag": [{"name": f"darklens:category=\"{a['category']}\""}, {"name": f"darklens:severity=\"{a['severity']}\""}]
+                   + ([{"name": "darklens:demo-data"}] if a.get("demo") else []),
+            "Attribute": attrs,
+        }})
+    return {"response": events}
+
+
+# ---------------- TAXII 2.1 (read only) ----------------
+
+TAXII_COLLECTION_ID = str(uuid.uuid5(_NS, "taxii|alerts"))
+TAXII_TYPE = "application/taxii+json;version=2.1"
+
+
+def taxii_discovery(base: str) -> dict:
+    return {"title": "DarkLens", "description": "Read-only threat intelligence from public sources.",
+            "default": f"{base}/taxii2/root/", "api_roots": [f"{base}/taxii2/root/"]}
+
+
+def taxii_root() -> dict:
+    return {"title": "DarkLens", "versions": [TAXII_TYPE], "max_content_length": 10_000_000}
+
+
+def taxii_collection() -> dict:
+    return {"id": TAXII_COLLECTION_ID, "title": "DarkLens alerts", "can_read": True, "can_write": False,
+            "media_types": ["application/stix+json;version=2.1"],
+            "description": "STIX 2.1 reports, indicators and vulnerabilities. Sources that forbid redistribution are left out."}
+
+
+def taxii_objects(alerts: list[dict], limit: int = 500, offset: int = 0, types: set[str] | None = None) -> dict:
+    objs = to_stix(alerts)["objects"]
+    if types:
+        objs = [o for o in objs if o["type"] in types]
+    page = objs[offset:offset + limit]
+    env: dict = {"more": offset + limit < len(objs), "objects": page}
+    if env["more"]:
+        env["next"] = str(offset + limit)
+    return env

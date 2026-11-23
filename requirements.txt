@@ -7,4 +7,5 @@ networkx>=3.2,<4
 PyYAML>=6.0,<7
 numpy>=1.26,<3
 psycopg[binary]>=3.2,<4
+sentry-sdk>=2.0,<3
 # optional, only for the Tor crawler: pip install "requests[socks]" stem

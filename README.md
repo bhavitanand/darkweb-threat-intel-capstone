@@ -9,6 +9,8 @@
 
 DarkLens watches public sources where criminals boast, sell and extort (today: live ransomware victim claims, malicious indicators and links, and the vulnerabilities CISA says are being exploited), scores every item from 0 to 100, and tells you **why** in plain words. Add your own domains and emails and anything that mentions them jumps to the top. It can also message you when that happens.
 
+**Current version: 0.3.0** (23 Nov 2026). Every release is listed in the [changelog](CHANGELOG.md), with a git tag per version.
+
 > Built as a Samsung Innovation Campus capstone (Batch A5). Defensive research only, see [SECURITY.md](SECURITY.md).
 
 ![The DarkLens overview: live stats, severity bar and threat types](docs/img/overview.jpg)
@@ -59,7 +61,8 @@ Collect real data with `python -m darklens ingest --live`, after getting a free 
 | **ATT&CK mapping** | Every alert lists the MITRE ATT&CK techniques its category points to. |
 | **Observed vs inferred** | Evidence packs separate what was observed, what was inferred, and what was not checked. Unknown is never reported as safe. |
 | **Privacy by design** | Passwords are masked before storage, password checks use k-anonymity, the crawler is allowlisted and read-only. |
-| **Integrations** | CSV and STIX 2.1 export, Slack/Discord/Teams webhook and email notifications. Sources whose terms forbid re-publishing (Ransomware.live) are credited with a link, shown without their raw text, and left out of exports. |
+| **Private workspaces** | Sign in with an emailed one-time link (no passwords). Keep a private watchlist, see only alerts about it, get a daily or weekly digest and a Slack, Discord or Teams alert, and use read-only API keys. See [docs/threat-model.md](docs/threat-model.md). |
+| **Integrations** | CSV, STIX 2.1 and MISP export, a read-only TAXII 2.1 server, Slack/Discord/Teams webhook and email notifications, indicator lookups through OTX, VirusTotal and GreyNoise (when their free keys are set). Sources whose terms forbid re-publishing (Ransomware.live) are credited with a link, shown without their raw text, and left out of exports. |
 
 ## Architecture
 
@@ -113,7 +116,8 @@ Details, known weaknesses and how to contribute labels: [docs/accuracy.md](docs/
 | [docs/accuracy.md](docs/accuracy.md) | What has been measured, weaknesses, how to measure properly |
 | [docs/labelling.md](docs/labelling.md) | How to build the real labelled set that will measure accuracy on real text |
 | [docs/api.md](docs/api.md) | Every endpoint |
-| [docs/roadmap.md](docs/roadmap.md) | What is done, what needs a person, what is next |
+| [docs/roadmap.md](docs/roadmap.md) | Versions, what is done, what needs a person, what 1.0 means |
+| [docs/threat-model.md](docs/threat-model.md) | What is protected, who might attack, and the known limits |
 | [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | Changes, how to contribute, ethics and responsible use |
 
 ## Project layout
@@ -158,7 +162,7 @@ CI runs both on every push, with a real Postgres service for the storage and API
 - The training corpus is **synthetic**. Accuracy on real forum text is unmeasured, and the model sometimes gives ordinary text a ransomware label at a low score (see [docs/accuracy.md](docs/accuracy.md)).
 - Rules are keyword patterns, so unusual wording can slip past them. Rule weights are hand-tuned and severity thresholds are not calibrated on real incidents.
 - Actor linking by shared wallets is a heuristic, not proof.
-- **No accounts.** The watchlist is shared by every visitor, and the API is open (rate limited). Private workspaces are on the roadmap.
+- **Accounts are email-only.** Sign-in is a one-time link to an inbox, with no second factor. The public feed and the shared public watchlist are open to everyone (rate limited); private lists belong in a workspace.
 - A claim on Ransomware.live is an accusation by criminals, not a confirmed breach.
 - Without `DATABASE_URL`, data lives in a local SQLite file that resets when a free host restarts.
 - Per-email breach search needs a paid HIBP key and is not enabled by default.

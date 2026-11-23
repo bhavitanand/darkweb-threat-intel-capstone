@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import notify, pipeline
-from .collectors import cisa_kev, feodo, forums, hibp, news, openphish, ransomware_live, threatfox, urlhaus
+from .collectors import cisa_kev, feodo, forums, github_advisories, hibp, news, openphish, ransomware_live, threatfox, urlhaus
 from .models import Item, now_iso
 from .store import db
 
@@ -48,7 +48,7 @@ def run_ingest(live: bool, con=None) -> dict:
     for name, fn in (("ransomware.live", ransomware_live.fetch), ("threatfox", threatfox.fetch),
                      ("urlhaus", urlhaus.fetch), ("cisa-kev", cisa_kev.fetch),
                      ("haveibeenpwned", hibp.fetch), ("security-news", news.fetch), ("openphish", openphish.fetch),
-                     ("feodo", feodo.fetch), ("forums", forums.fetch)):
+                     ("feodo", feodo.fetch), ("github-advisories", github_advisories.fetch), ("forums", forums.fetch)):
         got, status = _collect_one(name, fn, live)
         if not live:
             for it in got:
@@ -67,6 +67,12 @@ def run_ingest(live: bool, con=None) -> dict:
         if feed_days:  # indicators go stale fast and arrive by the thousand, so they expire sooner
             pruned += db.prune(con, cutoff(feed_days), kinds=("ioc",))
     sent = notify.dispatch(con)
+    try:
+        from . import workspace
+
+        workspace.run_scheduled(con)  # each workspace's webhook alerts and any digest that is due
+    except Exception as e:  # noqa: BLE001 - private alerts must never break the collection
+        log.warning("workspace alerts failed: %s", type(e).__name__)
     state = {"started_at": started, "finished_at": now_iso(), "mode": "live" if live else "demo",
              "items": result["items"], "alerts": result["alerts"], "sources": sources, "notified": sent, "pruned": pruned,
              "ok": all(s["status"] != "error" for s in sources)}

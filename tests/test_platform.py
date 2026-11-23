@@ -143,7 +143,7 @@ def test_ingest_status_reports_the_last_run(client):
     st = client.get("/api/ingest/status").json()
     assert st["last"]["mode"] == "demo" and st["live_ready"] is False
     assert {s["source"] for s in st["last"]["sources"]} == {"ransomware.live", "threatfox", "urlhaus", "cisa-kev", "haveibeenpwned",
-                                                              "security-news", "openphish", "feodo", "forums"}
+                                                              "security-news", "openphish", "feodo", "github-advisories", "forums"}
 
 
 # ---- feedback loop ----

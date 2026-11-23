@@ -2,6 +2,18 @@
 
 Honest status of what exists, what comes next, and what depends on people rather than code. Items are ordered by value for effort.
 
+## Versions
+
+| Version | Released | Theme |
+| --- | --- | --- |
+| 0.1.0 | 2026-11-15 | Core engine and API |
+| 0.2.0 | 2026-11-16 | Website, live data, feedback, exports, CI |
+| 0.2.1 | 2026-11-17 | Real-data training and testing, wider net, hardening |
+| 0.3.0 | 2026-11-23 | Accounts, workspaces, standards, more sources, observability |
+| 1.0.0 | not scheduled | See "What 1.0 means" below |
+
+Full detail for each is in the [changelog](../CHANGELOG.md).
+
 ## Done
 
 | Area | What |
@@ -12,9 +24,10 @@ Honest status of what exists, what comes next, and what depends on people rather
 | Real data | Live Ransomware.live collection on a schedule with per-source status, retention, demo data clearly badged |
 | Persistence | Postgres support through `DATABASE_URL` (SQLite stays the zero-setup default) |
 | Feedback loop | "Is this right?" votes, labelled export, `eval --feedback`, `eval --csv`, `eval --live-claims` |
-| Integrations | CSV and STIX 2.1 export, chat (webhook) and email notifications |
+| Accounts (v0.3) | Sign-in by emailed one-time link, private workspaces with their own watchlist and alert feed, email digest, per-workspace webhook, API keys, account deletion |
+| Integrations | CSV, STIX 2.1 and MISP export, a read-only TAXII 2.1 server, chat (webhook) and email notifications, GitHub advisories as a source, indicator lookups through OTX, VirusTotal and GreyNoise when their keys are set |
 | Safety | Rate limiting, input limits, token-protected ingest, CSV formula protection, CORS allowlist |
-| Engineering | 397 backend tests (5 of them only run against a real Postgres, which CI provides) and 22 frontend tests, CI on every push, Dependabot, documented deployment |
+| Engineering | 877 backend tests (5 of them only run against a real Postgres, which CI provides) and 97 frontend tests, CI on every push, CodeQL, Dependabot, optional Sentry, a written [threat model](threat-model.md), documented deployment |
 
 ## Needs a person (cannot be done by code alone)
 
@@ -30,6 +43,49 @@ Honest status of what exists, what comes next, and what depends on people rather
 | **Review alerts and press "Is this right?"** for a few weeks | Free labelled data and a measure of reviewer agreement | A few minutes a day |
 | **Create a chat webhook or SMTP login and set it on the server** | Turns the site from something you check into something that tells you | 15 minutes |
 | **Supervisor approval for any live Tor crawling** | The crawler ships disabled by design (see `SECURITY.md`) | Policy decision |
+
+## v0.3 plan: two tracks, run together
+
+The pitch rests on accuracy; the product is what makes people use it. v0.3 does both, in parallel, because they share almost no code. "Done" for v0.3 means every item below is either finished or has a written reason.
+
+### Track A: accuracy (make the numbers true for every class, not only breaches)
+
+Today three of the eight classes are measured on real text (breach, ransomware once the key is set, plus the false-alarm rate on ordinary text). The rest have no real examples, so no score may be quoted for them.
+
+| # | Item | Who | Done when |
+| --- | --- | --- | --- |
+| A1 | **A second untouched test**: collect items first seen after 17 November, label them with the same four AI labellers, score once without tuning | Dev, plus the browser steps | A published result, and the set marked spent |
+| A2 | **Real examples for the unmeasured classes**: exploit sale, malware sale, card fraud, threat chatter, phishing kit. Sources that are allowed: public researcher and vendor write-ups of real underground listings (with quoted listing text), law-enforcement takedown notices, Telegram public-channel text through the Bot API where reading it is permitted, and any crawler data once a supervisor approves the allowlist | A teammate collects, then it is labelled and loaded | 30 or more real examples per class, kept separate from training |
+| A3 | **Score each class on real text and publish it**, including the classes where it is poor | Dev | `docs/accuracy.md` has a per-class table of real results with sample sizes |
+| A4 | **Retrain on the larger real set** and keep the honest protocol (train earlier, test later) | Dev | Held-out per-class scores, with a CI gate for each class that has enough data |
+| A5 | **Calibrate severity** (breaches are conservative: 82% reach Medium) using reviewer feedback and the labelled sets | Dev, with feedback from the team | Severity bands checked against labelled examples |
+| A6 | **A human check on a sample** of the AI labels (the one number that says how far to trust them). Optional and only when someone has 15 minutes | Any teammate | One human-versus-machine kappa |
+| A7 | **Model comparison**: fine-tune a small transformer (DistilBERT) on the real set and compare with TF-IDF on the same split | Dev | A side-by-side table; keep whichever is better and cheaper to run |
+
+### Track B: product (make it something people keep using)
+
+| # | Item | Who | Done when |
+| --- | --- | --- | --- |
+| B1 | **Accounts and private workspaces**: sign-in by emailed magic link, a watchlist per workspace, API keys. The shared public watchlist stays as a read-only demo | Dev builds, the team creates the email sender (Brevo or SMTP) | A new visitor can sign in, add a private watchlist, and cannot see anyone else's |
+| B2 | **Daily or weekly email digest** of what changed for that workspace's watchlist, with unsubscribe | Dev | A real digest arrives and only contains that workspace's matches |
+| B3 | **Alerts that reach people**: Slack, Discord and WhatsApp (the WhatsApp bot from the E-TAP project is the same pattern), chosen per workspace | Dev, using the existing webhooks | One alert delivered on each channel in a test |
+| B4 | **More sources with free keys**: AlienVault OTX, VirusTotal and GreyNoise lookups for indicators, GitHub security advisories | A teammate signs up for each key, Dev writes a collector for each | Each appears in the status card |
+| B5 | **Exposure checks for your own assets**: given a watched domain, check public exposure through Shodan or Censys | A teammate gets the key, then it is built | A watched domain shows what it exposes publicly |
+| B6 | **Observability**: structured logs, Sentry, and a public status line | A teammate creates the Sentry project, Dev wires it | An error appears in Sentry and the site shows its own health |
+| B7 | **Standards**: TAXII endpoint and MISP export | Dev | An external tool can pull the feed |
+| B8 | **Hardening and releases**: CodeQL, a written threat model, a version tag and published container image per release, a background job queue if one worker stops being enough | Dev | Tagged `v0.3.0` with the changelog |
+
+**Status on 2026-11-23:** B1, B2, B3 (Slack, Discord and Teams webhooks; WhatsApp not yet), B6 (the Sentry hook is in, waiting for your DSN), B7 and the code and docs parts of B8 (CodeQL, threat model) are built and tested. Still to do: B4 and B5 (need your keys), B8's tag and container image, and Track A items that need new data or a GPU.
+
+### Order
+
+1. **This week:** confirm the deploy and CI, set the Render and abuse.ch keys, then A1 and A2 start (they are slow because they depend on collecting data).
+2. **Then, in parallel:** A3 to A5 as the data arrives; B1 and B2 (the longest product items), then B3.
+3. **Last:** B4 to B8 and A7 as time allows, and the `v0.3.0` tag.
+
+### What only a person can do
+
+Keys and accounts (OTX, VirusTotal, GreyNoise, Shodan or Censys, Sentry, an email sender), supervisor approval for anything that reads non-public sources, collecting the real underground-style text for A2, and an optional human check for A6.
 
 ## Next (engineering, about 1 to 3 weeks)
 
@@ -61,3 +117,15 @@ Honest status of what exists, what comes next, and what depends on people rather
 - `main` is deployed automatically. CI must pass before merging.
 - Every change that alters behaviour gets a test and a line in [CHANGELOG.md](../CHANGELOG.md).
 - Accuracy claims in the docs must name the data they were measured on.
+
+## What 1.0 means
+
+Version 1.0 is a promise, not a date. It needs all of these:
+
+1. **Accuracy measured on every class with real text**, including a second untouched test and a human-checked sample of the labels (items A1 to A3, plus the optional human check).
+2. **A stable API** that is versioned, so people can build on it without breaking.
+3. **Sign-in with more than an inbox** (a second factor or a social login), and a shared job queue so more than one server process is safe.
+4. **Keys-dependent sources live** (Ransomware.live, abuse.ch, OTX, VirusTotal, GreyNoise, Shodan or Censys) and their terms honoured on the page.
+5. **An independent look at security**: the CodeQL and threat-model work in 0.3, then an outside review.
+
+Until these are true the version stays below 1.0.

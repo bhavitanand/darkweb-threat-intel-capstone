@@ -23,6 +23,8 @@ Base URL: your Render address (or `http://127.0.0.1:8000` locally). Interactive 
 | --- | --- |
 | `GET /api/export/alerts.csv` | Spreadsheet-safe CSV of all alerts |
 | `GET /api/export/stix.json` | STIX 2.1 bundle (`application/stix+json`) |
+| `GET /api/export/misp.json` | MISP events, one per alert, with an attribute per indicator (eth and trx wallets have no MISP type and are left out) |
+| `GET /taxii2/` | TAXII 2.1 discovery (read only). Then `/taxii2/root/`, `/taxii2/root/collections/` and `/taxii2/root/collections/{id}/objects/` (`limit` up to 1000, `next`, `match[type]`). Sources that forbid redistribution are left out, as in every export |
 | `GET /api/export/feedback.csv` | Labelled examples from reviewer feedback (`text,label,predicted,item_id`) |
 
 ## Write
@@ -33,6 +35,21 @@ Base URL: your Render address (or `http://127.0.0.1:8000` locally). Interactive 
 | `POST /api/analyse` | `{text (max 20000 chars), title}` | Scores pasted text. Nothing is stored. Only the first 5,000 characters are classified; indicators and watchlist matches search all of it, and the answer has `truncated: true` when the text was cut |
 | `POST /api/alerts/{id}/feedback` | `{verdict: "correct" or "wrong", category}` | `category` is required when `wrong` and must differ from the current one. One vote per visitor per alert (a later vote replaces it) |
 | `POST /api/ingest?offline=false` | none | Runs a collection now. `offline=true` (default) loads demo data and is open unless `INGEST_TOKEN` is set. `offline=false` (live) is refused with `403` unless `INGEST_TOKEN` is set on the server, and then needs the header `X-Ingest-Token`. Scheduled collection (`AUTO_INGEST_MINUTES`) does not use this endpoint |
+
+## Accounts and private workspaces
+
+Send the session as `Authorization: Bearer <token>`, or an API key as `X-API-Key: dlk_...` (a key can only read `/api/workspace/alerts`).
+
+| Method and path | Notes |
+| --- | --- |
+| `POST /api/auth/request` `{email}` | Emails a one-time link (15 minutes). The answer is the same for any address. `dev_link` is returned only when `AUTH_DEV_LINKS=1` |
+| `POST /api/auth/verify` `{token}` | Spends the link and returns `{token, email}` |
+| `POST /api/auth/logout`, `GET /api/me`, `DELETE /api/account` | End the session, read the account and workspace, delete everything |
+| `GET /api/workspace/alerts` | Alerts about only your entries, scored against only your list |
+| `POST /api/workspace/watch`, `DELETE /api/workspace/watch?kind=&value=` | Your private entries (up to 50) |
+| `PUT /api/workspace/settings` | `digest` (off, daily, weekly), `webhook_url` (https, public host), `notify_min` |
+| `GET /api/workspace/digest/preview`, `POST /api/workspace/digest/send`, `POST /api/workspace/webhook/test` | Try the digest and the webhook |
+| `POST /api/workspace/keys`, `DELETE /api/workspace/keys/{id}` | Create (the key is shown once) and revoke API keys (up to 5) |
 
 ## Errors
 

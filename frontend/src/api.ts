@@ -1,5 +1,7 @@
+import { getToken } from './auth';
 import type {
-  Alert, AlertDetail, Analysis, EvalResult, FeedbackCounts, GraphData, IngestStatus, Stats, WatchEntry,
+  Alert, AlertDetail, Analysis, ApiKeyRecord, EvalResult, FeedbackCounts, GraphData, IngestStatus, MeResponse, Stats, WatchEntry,
+  WorkspaceAlert, WorkspaceView,
 } from './types';
 
 // Dev: empty, so requests go to /api and Vite proxies them. Production: the deployed API origin.
@@ -88,6 +90,25 @@ export function alertQueryString(p: AlertQuery): string {
   return s ? `?${s}` : '';
 }
 
+/** A request that carries the signed-in session. A 401 means the session ended, so it is forgotten here. */
+async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers = { ...(init.headers as Record<string, string> | undefined), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  try {
+    return await request<T>(path, { ...init, headers });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401 && token) {
+      const { setToken } = await import('./auth');
+      setToken(null);
+    }
+    throw e;
+  }
+}
+
+const jsonInit = (method: string, body: unknown): RequestInit => ({
+  method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+});
+
 const post = <T>(path: string, body: unknown) =>
   request<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
@@ -108,6 +129,22 @@ export const api = {
   ingestStatus: () => request<IngestStatus>('/api/ingest/status'),
   feedback: (id: string, verdict: 'correct' | 'wrong', category = '') =>
     post<FeedbackCounts>(`/api/alerts/${encodeURIComponent(id)}/feedback`, { verdict, category }),
+  requestLink: (email: string) => post<{ ok: boolean; message: string; dev_link?: string }>('/api/auth/request', { email }),
+  verifyLink: (token: string) => post<{ token: string; email: string }>('/api/auth/verify', { token }),
+  logout: () => authed<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+  me: () => authed<MeResponse>('/api/me'),
+  deleteAccount: () => authed<{ ok: boolean }>('/api/account', { method: 'DELETE' }),
+  workspaceAlerts: () => authed<WorkspaceAlert[]>('/api/workspace/alerts?limit=100'),
+  addEntry: (kind: WatchEntry['kind'], value: string) => authed<WorkspaceView>('/api/workspace/watch', jsonInit('POST', { kind, value })),
+  removeEntry: (kind: string, value: string) =>
+    authed<WorkspaceView>(`/api/workspace/watch?kind=${encodeURIComponent(kind)}&value=${encodeURIComponent(value)}`, { method: 'DELETE' }),
+  saveSettings: (body: { digest?: string; webhook_url?: string; notify_min?: string }) =>
+    authed<WorkspaceView>('/api/workspace/settings', jsonInit('PUT', body)),
+  newKey: (label: string) => authed<ApiKeyRecord & { key: string; note: string }>('/api/workspace/keys', jsonInit('POST', { label })),
+  revokeKey: (id: string) => authed<WorkspaceView>(`/api/workspace/keys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  digestPreview: () => authed<{ count: number; subject: string; body: string }>('/api/workspace/digest/preview'),
+  digestSend: () => authed<{ sent: boolean; count: number }>('/api/workspace/digest/send', { method: 'POST' }),
+  webhookTest: () => authed<{ ok: boolean }>('/api/workspace/webhook/test', { method: 'POST' }),
   exportUrl: (file: 'alerts.csv' | 'stix.json') => `${BASE}/api/export/${file}`,
   evidenceUrl: (id: string) => `${BASE}/api/alerts/${encodeURIComponent(id)}/evidence`,
 };

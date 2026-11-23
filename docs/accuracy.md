@@ -48,13 +48,13 @@ Still imperfect: the cut is on confidence, and the model is sometimes confidentl
 
 **What was measured.** 300 real items collected from public security-news and general-news feeds (headlines and short summaries). Of these: **234 ordinary (benign)**, **54 attack or exploitation news that fits none of the eight classes** (set aside as "skip", not scored), and **12 real threats** (5 ransomware or extortion, 6 breach reports, 1 phishing kit). The whole product was scored (`eval --csv ... --pipeline`), not just the text model.
 
-**How the labels were made.** Four AI labellers labelled all 300 items independently of the DarkLens model and of each other, following the written policy in [labelling.md](labelling.md): two Claude passes (the second from a fresh agent with no sight of the first), one ChatGPT pass and one Gemini pass (Gemini Hydrogen, thinking level High; ChatGPT with its Think mode on for the later batches). These are **machine ("silver") labels, not human ones.** A 50-item validation sheet for a human is prepared (`label validate make`), and until a person has checked a sample, the figures below should be read as provisional. One mechanical numbering slip in the first pass (one item shifted) was found by comparison and corrected.
+**How the labels were made.** Four AI labellers labelled all 300 items independently of the DarkLens model and of each other, following the written policy in [labelling.md](labelling.md): two passes from the first assistant (the second from a fresh agent with no sight of the first), one ChatGPT pass and one Gemini pass (Gemini Hydrogen, thinking level High; ChatGPT with its Think mode on for the later batches). These are **machine ("silver") labels, not human ones.** A 50-item validation sheet for a human is prepared (`label validate make`), and until a person has checked a sample, the figures below should be read as provisional. One mechanical numbering slip in the first pass (one item shifted) was found by comparison and corrected.
 
 | Labeller pair | Agreement, all 300 | Agreement, items nobody skipped |
 | --- | --- | --- |
-| Claude pass 1 and pass 2 | 98% (kappa 0.933) | 100% (246 items) |
-| ChatGPT and Claude pass 1 | 92% (kappa 0.788) | 99% (228) |
-| ChatGPT and Claude pass 2 | 91% (kappa 0.776) | 99% (230) |
+| First assistant, pass 1 and pass 2 | 98% (kappa 0.933) | 100% (246 items) |
+| ChatGPT and first assistant pass 1 | 92% (kappa 0.788) | 99% (228) |
+| ChatGPT and first assistant pass 2 | 91% (kappa 0.776) | 99% (230) |
 
 Gemini agrees with each of the other three on 95% of all 300 (kappa 0.87), and with ChatGPT on all 229 items neither skipped. All four together: Fleiss kappa **0.850**; all four agree on 271 items and 29 are contested. Almost every split is the benign-versus-skip boundary (ChatGPT skips more). Six contested items are about real threats (for example a breach by an exploited flaw, an incident-response trends report, an essay on ransom notes) and need a human tie-break. The figures in the tables below were measured on the earlier two-pass agreed set; re-scoring on the agreed set (the same 226 scorable items under three or four labellers) (226 scorable items: 215 benign, 5 ransomware, 6 credential dump) gave 0.9% false alarms at any level and none at Medium or higher, about 9% of real threats missed (1 of 11) and 4 of 11 detected with the wrong type, with only benign having enough examples to score. As a sensitivity check, scoring on majority-vote labels instead (289 items, 11 two-two ties left out; 227 benign, 5 ransomware, 7 credential dump) gave 1.8% false alarms at any level, 0.4% at Medium or higher, and 2 of 12 real threats missed. The false-alarm conclusion holds either way; the detection figure moves with a single item and should not be quoted as a rate.
 
@@ -85,7 +85,7 @@ What was found and fixed:
 
 ### The untouched test (17 November 2026)
 
-**What.** 177 items first collected on 17 November, after the rules and thresholds above were settled, kept in a separate folder and scored once before any change. Labelled by two independent AI labellers (Claude and ChatGPT with Think on; kappa 0.838 on all 177, 0.944 on the 123 neither skipped); **163 items agreed**, 14 contested. Gemini was not run on this set. Scorable agreed items: 113 benign, 7 credential dump, 1 ransomware, 1 phishing kit.
+**What.** 177 items first collected on 17 November, after the rules and thresholds above were settled, kept in a separate folder and scored once before any change. Labelled by two independent AI labellers (the first assistant and ChatGPT with Think on; kappa 0.838 on all 177, 0.944 on the 123 neither skipped); **163 items agreed**, 14 contested. Gemini was not run on this set. Scorable agreed items: 113 benign, 7 credential dump, 1 ransomware, 1 phishing kit.
 
 | Measured once, before any change | Result |
 | --- | --- |

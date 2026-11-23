@@ -10,12 +10,12 @@ import threading
 from collections import Counter
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from .. import __version__, export, ingest, notify, pipeline
+from .. import __version__, enrich, export, ingest, notify, observability, pipeline
 from ..evidence import build_pack
 from ..graph import entities
 from ..mitre import techniques
@@ -43,6 +43,8 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+observability.init()
+
 # Order matters: middleware added last is outermost. CORS goes last so even a 429 carries CORS headers.
 app.add_middleware(RateLimitMiddleware, read_per_min=_int_env("RATE_LIMIT_PER_MIN", 120),
                    write_per_min=_int_env("RATE_LIMIT_WRITE_PER_MIN", 20),
@@ -53,13 +55,18 @@ app.add_middleware(RateLimitMiddleware, read_per_min=_int_env("RATE_LIMIT_PER_MI
 # built-in dashboard and local development (Vite proxies /api) need.
 _ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 if _ORIGINS:
-    app.add_middleware(CORSMiddleware, allow_origins=_ORIGINS, allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-                       allow_headers=["Content-Type", "X-Ingest-Token"], expose_headers=["X-Total-Count"], max_age=600)
+    app.add_middleware(CORSMiddleware, allow_origins=_ORIGINS, allow_methods=["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
+                       allow_headers=["Content-Type", "X-Ingest-Token", "Authorization", "X-API-Key"], expose_headers=["X-Total-Count"], max_age=600)
 
 
 def con():
     """SQLite: a short-lived connection per call. Postgres: the shared, reconnecting connection."""
     return db.connect()
+
+
+from .account_routes import build_router  # noqa: E402
+
+app.include_router(build_router(lambda: con(), _lock))
 
 
 @app.on_event("startup")
@@ -283,6 +290,60 @@ def export_csv():
 def export_stix():
     return JSONResponse(export.to_stix(_exportable()), media_type="application/stix+json;version=2.1",
                         headers={"Content-Disposition": 'attachment; filename="darklens-stix.json"'})
+
+
+@app.get("/api/enrich")
+def enrich_indicator(kind: str = Query(..., max_length=10), value: str = Query(..., max_length=300)):
+    """Reputation of one indicator from the outside services whose free key is set (none set: an empty answer)."""
+    if kind not in enrich.SUPPORTED:
+        raise HTTPException(400, f"Supported types: {', '.join(enrich.SUPPORTED)}.")
+    try:
+        return enrich.lookup(kind, value)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/export/misp.json")
+def export_misp():
+    return JSONResponse(export.to_misp(_exportable()), headers={"Content-Disposition": 'attachment; filename="darklens-misp.json"'})
+
+
+def _taxii(body: dict) -> JSONResponse:
+    return JSONResponse(body, media_type=export.TAXII_TYPE)
+
+
+@app.get("/taxii2/")
+def taxii_discovery(request: Request):
+    return _taxii(export.taxii_discovery(str(request.base_url).rstrip("/")))
+
+
+@app.get("/taxii2/root/")
+def taxii_root():
+    return _taxii(export.taxii_root())
+
+
+@app.get("/taxii2/root/collections/")
+def taxii_collections():
+    return _taxii({"collections": [export.taxii_collection()]})
+
+
+@app.get("/taxii2/root/collections/{cid}/")
+def taxii_collection(cid: str):
+    if cid != export.TAXII_COLLECTION_ID:
+        raise HTTPException(404, "No such collection.")
+    return _taxii(export.taxii_collection())
+
+
+@app.get("/taxii2/root/collections/{cid}/objects/")
+def taxii_objects(cid: str, limit: int = Query(500, ge=1, le=1000), next: str = "0", match_type: str = Query("", alias="match[type]")):
+    if cid != export.TAXII_COLLECTION_ID:
+        raise HTTPException(404, "No such collection.")
+    try:
+        offset = max(0, min(int(next), 10**9))
+    except ValueError:
+        raise HTTPException(400, "Bad 'next' value.")
+    types = {t.strip() for t in match_type.split(",") if t.strip()} or None
+    return _taxii(export.taxii_objects(_exportable(), limit, offset, types))
 
 
 @app.get("/api/alerts/{item_id}/evidence", response_class=HTMLResponse)

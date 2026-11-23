@@ -59,3 +59,7 @@ python -m darklens notify-test
 | Alerts as STIX 2.1 | Alerts page, or `GET /api/export/stix.json` | Importing into other threat-intelligence tools. Contains reports, indicators and vulnerabilities. Crypto wallets (no STIX standard type) are carried in `x_darklens_wallets` on each report. |
 | Reviewer feedback as CSV | `GET /api/export/feedback.csv` | Labelled data for measuring accuracy. |
 | Evidence pack | Alert report, "Open evidence pack" | A sealed, self-contained page for one alert, to share or keep. |
+
+## Per-person alerts (v0.3)
+
+Signed-in users set their own digest (daily or weekly, sent only when something is new), webhook and minimum level under Workspace. These use the same de-duplication and caps as the shared notifications and only ever contain items that match that person's private watchlist. The email sender is Brevo (`BREVO_API_KEY` and `MAIL_FROM`) or SMTP.

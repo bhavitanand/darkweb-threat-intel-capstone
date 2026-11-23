@@ -67,6 +67,9 @@ Render's free tier sleeps after 15 minutes without traffic. Add an UptimeRobot *
 | `RATE_LIMIT_WRITE_PER_MIN` | Render | Writes per client per minute. `0` = off | `20` |
 | `TRUST_PROXY` | Render | `1` = take the client address from `X-Forwarded-For` (set on Render) | off |
 | `ALERT_WEBHOOK_URL`, `SMTP_*`, `ALERT_EMAIL_TO`, `NOTIFY_MIN`, `PUBLIC_APP_URL` | Render | See [alerts and notifications](alerts-and-notifications.md) | off |
+| `BREVO_API_KEY` or `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, plus `MAIL_FROM` | Render | Sends sign-in links and digests. Without one, sign-in cannot email (set `AUTH_DEV_LINKS=1` locally to get the link in the response) | unset |
+| `AUTH_DEV_LINKS` | local only | `1` returns the sign-in link in the response. Never set on a public server | off |
+| `SENTRY_DSN` | Render | Optional error reporting (`sentry-sdk` is in requirements.txt). No request bodies or user text are sent | off |
 | `VOTER_SALT` | Render | Salt for anonymous feedback votes | built-in |
 
 Never commit values for keys, tokens, webhook URLs or `DATABASE_URL`. Set them in the host's dashboard.

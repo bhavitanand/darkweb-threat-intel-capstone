@@ -1,8 +1,25 @@
 # Changelog
 
-All notable changes. Dates are when the change was made.
+All notable changes, newest first. Dates are when the change was made. The project follows [Semantic Versioning](https://semver.org) while it is below 1.0: a minor number (0.x) adds features, a patch number (0.x.y) is fixes and measurements. Each version below is a git tag.
 
-## [Unreleased] - 2026-11-17
+| Version | Date | In one line |
+| --- | --- | --- |
+| [0.3.0](#030---2026-11-23) | 2026-11-23 | Accounts and private workspaces, email digest, webhook and API keys, MISP and TAXII, GitHub advisories, indicator lookups, CodeQL, threat model |
+| [0.2.1](#021---2026-11-17) | 2026-11-17 | Trained and tested on real data, keyless sources, edge-case hardening |
+| [0.2.0](#020---2026-11-16) | 2026-11-16 | React website, live data, Postgres, feedback, exports, notifications, CI |
+| [0.1.0](#010---2026-11-15) | 2026-11-15 | Core engine: rules, classifier, scoring, indicators, graph, API, evidence packs |
+
+## [0.3.0] - 2026-11-23
+
+### Added
+- **Accounts and private workspaces.** Sign in with an emailed one-time link (no passwords). Each workspace has its own private watchlist (domains, emails, software), an "About what you watch" feed scored against only that list, an optional daily or weekly **email digest** (only sent when something is new), an **alert webhook** for Slack, Discord or Teams with a minimum level, and **API keys** (shown once, read-only, revocable). Deleting the account removes everything. New pages Workspace and Sign in; routes under `/api/auth/*`, `/api/me`, `/api/account`, `/api/workspace*` (see `docs/api.md`).
+- **GitHub Advisory Database** as a new live source (no key; `GITHUB_TOKEN` optional), and **indicator lookups** (`GET /api/enrich`) against OTX, VirusTotal and GreyNoise for whichever free keys are set (`OTX_API_KEY`, `VIRUSTOTAL_API_KEY`, `GREYNOISE_API_KEY`), validated, cached and capped at 12 lookups a minute.
+- **MISP export** (`/api/export/misp.json`) and a read-only **TAXII 2.1** server (`/taxii2/`), so other tools can pull the feed. Restricted sources stay excluded.
+- Optional **Sentry** error reporting (`SENTRY_DSN`, off by default, no user text sent), a **CodeQL** workflow, and a written **threat model** (`docs/threat-model.md`).
+- **Frontend:** new Sign in and Workspace pages (private entries, "About what you watch", digest and webhook settings, API keys shown once, delete account); the sign-in link is spent once even when React runs an effect twice.
+- About 110 new backend tests (accounts, isolation between two users, webhook safety, exports) and 8 frontend tests.
+
+## [0.2.1] - 2026-11-17
 
 ### Added
 - **Watch your software.** The watchlist now takes product and vendor names ("Software or vendor"). A report of an exploit, breach or attack on something you run, or a CISA-listed exploited flaw in it, is High instead of Low; a passing mention is only a Low hint. Whole-word matching, so short names do not fire inside other words.

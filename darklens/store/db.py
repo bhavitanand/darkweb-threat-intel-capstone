@@ -45,6 +45,30 @@ CREATE TABLE IF NOT EXISTS kv (
 CREATE TABLE IF NOT EXISTS notified (
   item_id TEXT, channel TEXT, created_at TEXT, PRIMARY KEY (item_id, channel)
 );
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY, email TEXT UNIQUE, created_at TEXT
+);
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY, owner_id TEXT, name TEXT, created_at TEXT,
+  digest TEXT, digest_sent_at TEXT, webhook_url TEXT, notify_min TEXT
+);
+CREATE TABLE IF NOT EXISTS ws_watch (
+  workspace_id TEXT, kind TEXT, value TEXT, PRIMARY KEY (workspace_id, kind, value)
+);
+CREATE TABLE IF NOT EXISTS login_tokens (
+  token_hash TEXT PRIMARY KEY, email TEXT, created_at TEXT, expires_at TEXT, used INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_login_email ON login_tokens(email);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY, user_id TEXT, created_at TEXT, expires_at TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_sessions_user ON sessions(user_id);
+CREATE TABLE IF NOT EXISTS api_keys (
+  id TEXT PRIMARY KEY, workspace_id TEXT, key_hash TEXT UNIQUE, label TEXT, created_at TEXT, last_used TEXT
+);
+CREATE TABLE IF NOT EXISTS ws_notified (
+  workspace_id TEXT, item_id TEXT, channel TEXT, created_at TEXT, PRIMARY KEY (workspace_id, item_id, channel)
+);
 """
 
 

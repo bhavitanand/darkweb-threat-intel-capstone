@@ -8,7 +8,9 @@ export type Route =
   | { name: 'graph' }
   | { name: 'watchlist' }
   | { name: 'analyse' }
-  | { name: 'learn' };
+  | { name: 'learn' }
+  | { name: 'signin'; token: string }
+  | { name: 'workspace' };
 
 /** A pasted or mangled link such as /#/alerts/%E0%A4%A is not valid percent-encoding. decodeURIComponent throws on it,
  *  and a throw while rendering blanks the whole page, so fall back to the text as typed (it will simply not be found). */
@@ -22,7 +24,8 @@ function safeDecode(s: string): string {
 
 /** Hash routing keeps this a static site. (index.html also turns a pasted /alerts into /#/alerts.) */
 export function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#\/?/, '').split('?')[0];
+  const [rawPath, query = ''] = hash.replace(/^#\/?/, '').split('?');
+  const path = rawPath;
   const [head, ...rest] = path.split('/').filter(Boolean);
   switch (head) {
     case 'alerts':
@@ -37,6 +40,10 @@ export function parseRoute(hash: string): Route {
       return { name: 'analyse' };
     case 'learn':
       return { name: 'learn' };
+    case 'signin':
+      return { name: 'signin', token: safeDecode(new URLSearchParams(query).get('token') ?? '') };
+    case 'workspace':
+      return { name: 'workspace' };
     default:
       return { name: 'overview' };
   }
