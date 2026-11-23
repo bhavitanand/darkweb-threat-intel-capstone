@@ -157,7 +157,8 @@ describe('layoutGraph', () => {
     const lnk: GraphLink[] = many.slice(1).map((n, i) => ({ source: n.id, target: `n${Math.floor(i / 3)}`, rel: 'x' }));
     const start = Date.now();
     const placed = layoutGraph(many, lnk, 960, 560);
-    expect(Date.now() - start).toBeLessThan(5000);
+    // A loose ceiling: this guards against a layout that never finishes, not against a slow shared CI machine.
+    expect(Date.now() - start).toBeLessThan(20000);
     expect(placed).toHaveLength(1500);
     expect(placed.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
   });

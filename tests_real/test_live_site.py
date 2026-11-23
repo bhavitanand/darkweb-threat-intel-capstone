@@ -14,10 +14,37 @@ import pytest
 API = os.environ.get("DARKLENS_API", "https://darklens-capstone.onrender.com").rstrip("/")
 
 
+def _open(req, timeout=90):
+    """urlopen that waits out a deployment in progress. A push starts CI and a redeploy at the same moment, and the host
+    answers 502, 503 or 504 for a minute or so while the new version starts, which is not a failure of the product."""
+    import time
+
+    for attempt in range(8):
+        try:
+            return urllib.request.urlopen(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code not in (502, 503, 504) or attempt == 7:
+                raise
+            time.sleep(10)
+        except (ConnectionError, TimeoutError, urllib.error.URLError):
+            # a dropped connection on the free host or its proxy: try again a few times before calling it a failure
+            if attempt >= 3:
+                raise
+            time.sleep(5)
+
+
 def get(path, timeout=90):
+    import time
+
     req = urllib.request.Request(API + path, headers={"User-Agent": "darklens-smoke-test"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.status, dict(r.headers), r.read()
+    for attempt in range(4):
+        try:
+            with _open(req, timeout) as r:
+                return r.status, dict(r.headers), r.read()  # the connection can also drop while the body is read
+        except (ConnectionError, TimeoutError, urllib.error.URLError):
+            if attempt == 3:
+                raise
+            time.sleep(5)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -72,7 +99,7 @@ def test_analyse_endpoint_on_real_headlines():
     def analyse(text):
         req = urllib.request.Request(API + "/api/analyse", data=json.dumps({"text": text}).encode(),
                                      headers={"Content-Type": "application/json", "User-Agent": "darklens-smoke-test"})
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with _open(req) as r:
             return json.loads(r.read())
     ordinary = analyse("UK economy grows at fastest rate for more than two years")
     assert ordinary["score"] == 0 or ordinary["severity"] == "low"
