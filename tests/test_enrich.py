@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from darklens import enrich
@@ -53,9 +55,19 @@ def test_hash_skips_greynoise_and_rate_cap(monkeypatch):
     assert enrich.lookup("sha256", "a" * 64)["results"] == {}
     monkeypatch.setenv("OTX_API_KEY", "k")
     monkeypatch.setattr(enrich, "_get", lambda u, h: {"pulse_info": {"count": 0}})
-    for i in range(enrich.MAX_CALLS_PER_MIN):
+    for i in range(enrich.LIMITS["otx"][0]):
         enrich.lookup("domain", f"d{i}.example")
     assert "busy" in enrich.lookup("domain", "late.example")["results"]["otx"]["error"]
+
+
+def test_virustotal_budget_is_per_minute_and_per_day(monkeypatch):
+    monkeypatch.setenv("VIRUSTOTAL_API_KEY", "k")
+    calls = []
+    monkeypatch.setattr(enrich, "_get", lambda u, h: calls.append(u) or {"data": {"attributes": {"last_analysis_stats": {"malicious": 0}}}})
+    out = [enrich.lookup("domain", f"v{i}.example")["results"]["virustotal"] for i in range(6)]
+    assert len(calls) == 4 and sum("busy" in str(o.get("error", "")) for o in out) == 2
+    enrich._calls["virustotal"] = [time.time() - 70] * 400  # a full day's use, none in the last minute
+    assert "busy" in enrich.lookup("domain", "late.example")["results"]["virustotal"]["error"]
 
 
 def test_endpoint(monkeypatch):

@@ -13,9 +13,31 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import time
 from email.message import EmailMessage
 
 log = logging.getLogger("darklens.mailer")
+
+
+# One budget for the whole server, so a flood of sign-in requests for different addresses cannot use up the provider's
+# daily quota (Brevo's free plan: 300 a day) and stop real sign-ins. MAIL_DAILY_LIMIT overrides; 0 turns the cap off.
+_sent: list[float] = []
+
+
+def _daily_limit() -> int:
+    try:
+        return int(os.environ.get("MAIL_DAILY_LIMIT", "250"))
+    except ValueError:
+        return 250
+
+
+def _budget_left() -> bool:
+    limit = _daily_limit()
+    if limit <= 0:
+        return True
+    now = time.time()
+    _sent[:] = [t for t in _sent if now - t < 86400]
+    return len(_sent) < limit
 
 
 class MailError(RuntimeError):
@@ -41,6 +63,8 @@ def send(to: str, subject: str, body: str) -> None:
         raise MailError("Email sending is not configured on this server.")
     if "@" not in to or any(c in to for c in " <>,;\"'"):
         raise MailError("That does not look like an email address.")
+    if not _budget_left():
+        raise MailError("Too many emails have been sent today. Try again later.")
     try:
         if os.environ.get("BREVO_API_KEY"):
             import requests
@@ -51,6 +75,7 @@ def send(to: str, subject: str, body: str) -> None:
                                     "subject": subject, "textContent": body})
             if r.status_code >= 300:
                 raise MailError(f"The email provider refused the message ({r.status_code}).")
+            _sent.append(time.time())
             return
         msg = EmailMessage()
         msg["Subject"], msg["From"], msg["To"] = subject, sender(), to
@@ -62,6 +87,7 @@ def send(to: str, subject: str, body: str) -> None:
             if os.environ.get("SMTP_USER"):
                 s.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
             s.send_message(msg)
+        _sent.append(time.time())
     except MailError:
         raise
     except Exception as e:  # noqa: BLE001 - provider and network errors vary; never leak details such as keys

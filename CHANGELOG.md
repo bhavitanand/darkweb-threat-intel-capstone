@@ -11,6 +11,11 @@ All notable changes, newest first. Dates are when the change was made. The proje
 
 ## [0.3.0] - 2026-11-23
 
+### Fixed (found in a live sweep after release)
+- A NUL character in an alert search (`?q=%00`) crashed with a 500 on Postgres; it is now a 400, as is a database data error from any other input.
+- Indicator lookups now have a budget per provider (VirusTotal 4 a minute and 400 a day, GreyNoise 10 a minute and 40 a day, OTX 30 a minute), shared by all visitors, so the free keys are never the ones that get blocked.
+- The server sends at most 250 emails a day (`MAIL_DAILY_LIMIT`), so sign-in spam cannot use up Brevo's free quota.
+
 ### Added
 - **Accounts and private workspaces.** Sign in with an emailed one-time link (no passwords). Each workspace has its own private watchlist (domains, emails, software), an "About what you watch" feed scored against only that list, an optional daily or weekly **email digest** (only sent when something is new), an **alert webhook** for Slack, Discord or Teams with a minimum level, and **API keys** (shown once, read-only, revocable). Deleting the account removes everything. New pages Workspace and Sign in; routes under `/api/auth/*`, `/api/me`, `/api/account`, `/api/workspace*` (see `docs/api.md`).
 - **GitHub Advisory Database** as a new live source (no key; `GITHUB_TOKEN` optional), and **indicator lookups** (`GET /api/enrich`) against OTX, VirusTotal and GreyNoise for whichever free keys are set (`OTX_API_KEY`, `VIRUSTOTAL_API_KEY`, `GREYNOISE_API_KEY`), validated, cached and capped at 12 lookups a minute.

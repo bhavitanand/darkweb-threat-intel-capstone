@@ -539,3 +539,29 @@ def test_smtp_path_builds_one_message(monkeypatch):
     monkeypatch.setattr(mailer.smtplib, "SMTP", FakeSMTP)
     mailer.send("to@example.com", "Subject\nBcc: evil@x.com", "text")
     assert got["tls"] and got["msg"]["To"] == "to@example.com" and got["msg"]["Bcc"] is None and "\n" not in got["msg"]["Subject"]
+
+
+def test_daily_email_budget_protects_the_provider_quota(monkeypatch):
+    import time
+
+    from darklens import mailer
+
+    monkeypatch.setenv("BREVO_API_KEY", "k")
+    monkeypatch.setenv("MAIL_DAILY_LIMIT", "3")
+    mailer._sent[:] = []
+
+    class R:
+        status_code = 201
+
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: R())
+    for _ in range(3):
+        mailer.send("a@example.com", "s", "b")
+    with pytest.raises(mailer.MailError, match="today"):
+        mailer.send("a@example.com", "s", "b")
+    mailer._sent[:] = [time.time() - 90000] * 3  # yesterday's sends no longer count
+    mailer.send("a@example.com", "s", "b")
+    monkeypatch.setenv("MAIL_DAILY_LIMIT", "0")  # 0 = no cap
+    mailer._sent[:] = [time.time()] * 999
+    mailer.send("a@example.com", "s", "b")
+    mailer._sent[:] = []

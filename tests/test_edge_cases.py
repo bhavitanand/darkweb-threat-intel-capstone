@@ -153,10 +153,16 @@ def test_bad_numbers_in_alert_queries_are_422_not_500(client, query):
 
 
 @pytest.mark.parametrize("query", ["severity=nope", "category=nope", "data=weird", "severity=&category=&q=", "q=" + "a" * 5000,
-                                   "q=%00", "q=%E2%80%AE", "q=%F0%9F%92%80", "severity=low&severity=high"])
+                                   "q=%E2%80%AE", "q=%F0%9F%92%80", "severity=low&severity=high"])
 def test_odd_filters_return_a_list(client, query):
     r = client.get(f"/api/alerts?{query}")
     assert r.status_code == 200 and isinstance(r.json(), list) and "x-total-count" in r.headers
+
+
+@pytest.mark.parametrize("path", ["/api/alerts?q=%00", "/api/alerts/%00"])
+def test_nul_characters_are_refused_with_400(client, path):
+    """Postgres cannot store a NUL, and it used to be a 500 there; it is now a plain 400 on every database."""
+    assert client.get(path).status_code == 400
 
 
 def test_unknown_filter_values_match_nothing_rather_than_everything(client):
@@ -164,7 +170,7 @@ def test_unknown_filter_values_match_nothing_rather_than_everything(client):
     assert client.get("/api/alerts?category=nope").json() == []
 
 
-@pytest.mark.parametrize("path", ["/api/alerts/nope", "/api/alerts/%00", "/api/alerts/..%2f..%2fetc%2fpasswd", "/api/alerts/" + "a" * 3000,
+@pytest.mark.parametrize("path", ["/api/alerts/nope", "/api/alerts/..%2f..%2fetc%2fpasswd", "/api/alerts/" + "a" * 3000,
                                   "/api/alerts/nope/evidence", "/api/alerts/%27%20OR%201=1--"])
 def test_unknown_or_hostile_alert_ids_are_404(client, path):
     assert client.get(path).status_code in (404, 422)

@@ -23,8 +23,11 @@ _HASH = {"md5": re.compile(r"^[a-f0-9]{32}$"), "sha1": re.compile(r"^[a-f0-9]{40
 SUPPORTED = ("ipv4", "domain", "md5", "sha1", "sha256")
 
 _cache: dict[tuple, tuple[float, dict]] = {}
-_calls: list[float] = []
-MAX_CALLS_PER_MIN = 12  # all visitors together: free quotas are small and must not be burnt by one person
+# All visitors share one budget per provider: the free quotas are small (VirusTotal: 4 a minute and 500 a day) and must not be
+# burnt by one person. Kept a little under each published limit so we are never the one that gets blocked.
+LIMITS = {"virustotal": (4, 400), "otx": (30, 2000), "greynoise": (10, 40)}  # (per minute, per day)
+_calls: dict[str, list[float]] = {}
+MAX_CALLS_PER_MIN = 12  # kept for tests that fill the budget generically
 
 
 def normalise(kind: str, value: str) -> str | None:
@@ -95,6 +98,19 @@ def _gn(kind: str, v: str) -> dict:
 _LOOKUPS = {"otx": _otx, "virustotal": _vt, "greynoise": _gn}
 
 
+def _take(name: str) -> bool:
+    """Spend one call from this provider's minute and day budget; False when either is used up."""
+    per_min, per_day = LIMITS[name]
+    now = time.time()
+    log = [t for t in _calls.get(name, []) if now - t < 86400]
+    if len(log) >= per_day or sum(1 for t in log if now - t < 60) >= per_min:
+        _calls[name] = log
+        return False
+    log.append(now)
+    _calls[name] = log
+    return True
+
+
 def lookup(kind: str, value: str) -> dict:
     """{"indicator", "kind", "results": {provider: {summary, flagged, link} | {error}}, "providers": [...]}. Raises ValueError on a bad indicator."""
     v = normalise(kind, value)
@@ -108,12 +124,9 @@ def lookup(kind: str, value: str) -> dict:
         if hit and time.time() - hit[0] < TTL:
             results[name] = hit[1]
             continue
-        now = time.time()
-        _calls[:] = [t for t in _calls if now - t < 60]
-        if len(_calls) >= MAX_CALLS_PER_MIN:
+        if not _take(name):
             results[name] = {"error": "Lookups are busy, try again in a minute."}
             continue
-        _calls.append(now)
         try:
             out = _LOOKUPS[name](kind, v)
         except Exception as e:  # noqa: BLE001  a provider being down or out of quota must not hide the others

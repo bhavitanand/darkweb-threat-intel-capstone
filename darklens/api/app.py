@@ -45,6 +45,26 @@ def _int_env(name: str, default: int) -> int:
 
 observability.init()
 
+
+@app.middleware("http")
+async def _reject_nul(request: Request, call_next):
+    """A NUL character (%00) in the address or search cannot be stored by Postgres and used to cause a 500. Nothing legitimate
+    contains one, so refuse it up front with a plain message."""
+    nul = chr(0)
+    if any("%00" in part.lower() or nul in part for part in (request.url.query, request.url.path)):
+        return JSONResponse({"detail": "That input contains a character that is not allowed."}, status_code=400)
+    return await call_next(request)
+
+
+@app.exception_handler(Exception)
+async def _unexpected(request: Request, exc: Exception):
+    """Odd input that the database refuses (a NUL character inside a JSON body, for example) is the caller's problem, not
+    ours: answer 400 instead of a bare 500. Anything else stays a 500 (and reaches Sentry when it is set up)."""
+    if type(exc).__module__.startswith("psycopg") and type(exc).__name__ in ("DataError", "ProgrammingError", "DataException"):
+        return JSONResponse({"detail": "That input contains characters that cannot be stored."}, status_code=400)
+    raise exc
+
+
 # Order matters: middleware added last is outermost. CORS goes last so even a 429 carries CORS headers.
 app.add_middleware(RateLimitMiddleware, read_per_min=_int_env("RATE_LIMIT_PER_MIN", 120),
                    write_per_min=_int_env("RATE_LIMIT_WRITE_PER_MIN", 20),
