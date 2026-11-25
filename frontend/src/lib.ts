@@ -8,7 +8,7 @@ export function needsRansomwareLiveCredit(alerts: { source: string }[]): boolean
   return alerts.some((a) => a.source === 'ransomware.live');
 }
 
-export type Tone ='danger' | 'orange' | 'caution' | 'safe' | 'info' | 'muted';
+export type Tone = 'danger' | 'orange' | 'caution' | 'safe' | 'info' | 'muted' | 'amber';
 
 export const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
 
@@ -103,7 +103,7 @@ export function severityFromScore(score: number): Severity {
 }
 
 export const TONE_HEX: Record<string, string> = {
-  danger: '#d93a45', orange: '#e0702b', caution: '#b9811a', safe: '#2e9e6b',
+  danger: '#b3261e', orange: '#b4500f', caution: '#7d6418', safe: '#4f6b4a',
 };
 
 export function severityMeta(s: string) {
@@ -136,6 +136,15 @@ export function iocLabel(kind: string): string {
 export function splitRule(name: string): { code: string; title: string } {
   const m = /^(DL-[A-Z]+-\d+)\s+(.+)$/.exec(name);
   return m ? { code: m[1], title: m[2] } : { code: '', title: name };
+}
+
+/** "www.bleepingcomputer.com/news/..." -> "bleepingcomputer.com", for "Read the original report on ...". */
+export function hostOf(url: string, fallback = 'the source'): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function pct(n: number, digits = 0): string {

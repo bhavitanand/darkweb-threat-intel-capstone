@@ -9,7 +9,7 @@
 
 DarkLens watches public sources where criminals boast, sell and extort (today: live ransomware victim claims, malicious indicators and links, and the vulnerabilities CISA says are being exploited), scores every item from 0 to 100, and tells you **why** in plain words. Add your own domains and emails and anything that mentions them jumps to the top. It can also message you when that happens.
 
-**Current version: 0.3.0** (23 Nov 2026). Every release is listed in the [changelog](CHANGELOG.md), with a git tag per version.
+**Current version: 0.4.0** (25 Nov 2026). Every release is listed in the [changelog](CHANGELOG.md), with a git tag per version.
 
 > Built as a Samsung Innovation Campus capstone (Batch A5). Defensive research only, see [SECURITY.md](SECURITY.md).
 
@@ -24,14 +24,15 @@ DarkLens watches public sources where criminals boast, sell and extort (today: l
 
 ## Using the website
 
-The site has a built-in **Get started** page. In short:
+The landing page explains DarkLens in a few lines; sign up at the bottom with one email (no password). Then:
 
-1. **Watchlist**: add your company's domains and emails. (The watchlist is shared by every visitor, since there are no accounts yet. Run your own copy for private monitoring.)
-2. **Alerts**: work from the top, Critical then High. Filter by type, or by real versus demo data.
+1. **Set alerts**: say what you care about in a sentence, such as *"alert me for any PHP to shell vulnerability in WordPress"* or *"leaked logins for mycompany.com"*. DarkLens shows what it understood as chips you can edit, then saves it. Exact domains, emails and software can still be added by hand.
+2. **My alerts**: only what matches you, most serious first. Each item says why it matched and links to the original report.
 3. **Open an alert**: read the score, every reason behind it, the clues found, and the attack techniques it matches.
 4. **Decide**: Critical means act now, High means review within a day, Medium means keep an eye on it, Low needs nothing.
-5. **"Is this right?"**: tell DarkLens when it got the type wrong. This is how accuracy on real data is measured.
-6. **Take it with you**: export CSV or STIX 2.1, open a sealed evidence pack, or switch on chat and email alerts.
+5. **Connectors**: get matches in Slack, Discord or Teams, or as an email digest, each with its own minimum level.
+6. **Connections**: groups of alerts that share a wallet, address, file or poster, around your alerts or across everything.
+7. **Live feed**: everything collected, unfiltered, with CSV and STIX 2.1 export. **"Is this right?"** on a report tells DarkLens when it got the type wrong.
 
 Alerts marked **Demo** are made up so the tool is never empty. The full walkthrough, with the data flow, is in [docs/workflow.md](docs/workflow.md).
 
@@ -43,7 +44,7 @@ python -m darklens serve                    # API and original dashboard on http
 cd frontend && npm install && npm run dev   # website on http://localhost:5173 (proxies /api)
 ```
 
-Try it: open the top alert and read why it scored what it did. Add `granite-bank.example` to the watchlist and watch the credential dump aimed at that domain jump to 100. Look at the connection map: two forum personas share one Bitcoin address, flagged as a possible single operator.
+Try it: sign in (locally, start the API with `AUTH_DEV_LINKS=1` and the sign-in link is shown on the page), go to **Set alerts** and type *"leaked logins for granite-bank.example"*: the demo credential dump aimed at that domain appears in **My alerts** at 100. On **Connections**, two forum personas share one Bitcoin address and are flagged as a possible single operator.
 
 Collect real data with `python -m darklens ingest --live`, after getting a free [Ransomware.live key](https://my.ransomware.live) (`RANSOMWARE_LIVE_API_KEY`, required by their terms) and optionally a free [abuse.ch key](https://auth.abuse.ch/) (`ABUSECH_AUTH_KEY`). A source without its key is skipped. Hosting it for others is covered in [docs/deployment.md](docs/deployment.md).
 
@@ -54,6 +55,7 @@ Collect real data with `python -m darklens ingest --live`, after getting a free 
 | **Explainable scores** | Every alert is a set of signals combined with noisy-OR, `1 - prod(1 - s/100)`. Weak signals add up, a strong one dominates. Generic signals are discounted so only converging evidence reaches critical. |
 | **Hybrid classifier** | 27 original MIT-licensed detection rules fused with a TF-IDF + logistic regression model over 8 categories, with a "Not sure" answer instead of a guess when the model alone is unsure. |
 | **Honest evaluation** | Synthetic held-out templates, **plus** checks on real claims, reviewer feedback and your own labelled data. The page [docs/accuracy.md](docs/accuracy.md) says what is and is not measured. |
+| **Alerts as sentences** | Type *"ransomware attacks on hospitals, critical only"*: a local parser (no AI service) turns it into editable chips, and only matching items reach your feed and your Slack, Discord or Teams. |
 | **Watchlist-aware** | Watched domains, emails and **software or vendor names** turn generic intel into "this is about us". An attack on a product you run, or a CISA-listed exploited flaw in it, becomes High; a patch story is Medium. Adding an entry re-scores the stored items that mention it. |
 | **Live and demo data, clearly separated** | Real feeds on a schedule with per-source status; synthetic samples carry a Demo badge and never trigger notifications. |
 | **Validated IOCs** | Bitcoin and Tron addresses pass Base58Check, private IPs and file names are dropped, defanged indicators (`hxxp`, `[.]`) are restored. |
@@ -133,6 +135,7 @@ darklens/
   graph/        entity graph and actor linking
   store/        SQLite or Postgres behind one interface
   api/          FastAPI backend and rate limiter
+  alert_rules.py  alerts written as sentences: parser, matcher, storage
   ingest.py     scheduled collection with per-source status
   notify.py     webhook and email alerts
   export.py     CSV and STIX 2.1

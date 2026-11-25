@@ -75,7 +75,7 @@ export default function SignIn({ token }: { token: string }) {
     p.then((r) => {
       if (!live) return;
       setToken(r.token);
-      go('/workspace');
+      go('/home');
     }).catch((e: unknown) => live && setError(e instanceof Error ? e.message : 'That link did not work.'));
     return () => {
       live = false;

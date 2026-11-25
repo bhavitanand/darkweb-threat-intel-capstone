@@ -2,13 +2,13 @@ import { useMemo, useSyncExternalStore } from 'react';
 
 export type Route =
   | { name: 'overview' }
-  | { name: 'start' }
+  | { name: 'home' }
+  | { name: 'rules' }
   | { name: 'alerts' }
   | { name: 'alert'; id: string }
   | { name: 'graph' }
-  | { name: 'watchlist' }
+  | { name: 'connectors' }
   | { name: 'analyse' }
-  | { name: 'learn' }
   | { name: 'signin'; token: string }
   | { name: 'workspace' };
 
@@ -30,16 +30,17 @@ export function parseRoute(hash: string): Route {
   switch (head) {
     case 'alerts':
       return rest.length ? { name: 'alert', id: safeDecode(rest.join('/')) } : { name: 'alerts' };
-    case 'start':
-      return { name: 'start' };
+    case 'home':
+      return { name: 'home' };
+    case 'rules':
+    case 'watchlist': // the old public watchlist page: watching now lives in "Set alerts"
+      return { name: 'rules' };
     case 'graph':
       return { name: 'graph' };
-    case 'watchlist':
-      return { name: 'watchlist' };
+    case 'connectors':
+      return { name: 'connectors' };
     case 'analyse':
       return { name: 'analyse' };
-    case 'learn':
-      return { name: 'learn' };
     case 'signin':
       return { name: 'signin', token: safeDecode(new URLSearchParams(query).get('token') ?? '') };
     case 'workspace':

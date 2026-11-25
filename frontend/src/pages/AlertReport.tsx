@@ -1,7 +1,7 @@
 import { ArrowLeft, ExternalLink, FileText } from 'lucide-react';
 import { api } from '../api';
 import { useAsync } from '../hooks';
-import { timeAgo } from '../lib';
+import { hostOf, timeAgo } from '../lib';
 import { IocList, ProbBars, SignalList, Verdict } from '../components/parts';
 import FeedbackCard from '../components/FeedbackCard';
 import SourceCredit from '../components/SourceCredit';
@@ -12,7 +12,7 @@ export default function AlertReport({ id }: { id: string }) {
 
   return (
     <>
-      <a className="back" href="#/alerts"><ArrowLeft size={16} aria-hidden="true" /> All alerts</a>
+      <a className="back" href="#" onClick={(e) => { e.preventDefault(); if (window.history.length > 1) window.history.back(); else window.location.hash = '/alerts'; }}><ArrowLeft size={16} aria-hidden="true" /> Back</a>
       {loading && !a && <Loading what="the report" slow={slow} />}
       {error && /not found/i.test(error) ? (
         <div className="state" role="status">
@@ -33,6 +33,13 @@ export default function AlertReport({ id }: { id: string }) {
             <h1>{a.title || '(untitled post)'}</h1>
             {a.demo && (
               <p><Chip tone="info">Demo</Chip> <span className="muted">This is made-up sample data, not a real incident.</span></p>
+            )}
+            {a.url && (
+              <p style={{ margin: '10px 0' }}>
+                <a className="src-link" href={a.url} target="_blank" rel="noreferrer noopener">
+                  Read the original report on {a.source === 'ransomware.live' ? 'Ransomware.live' : hostOf(a.url, a.source)} <ExternalLink size={14} aria-hidden="true" />
+                </a>
+              </p>
             )}
             <p className="muted">
               From {a.source}

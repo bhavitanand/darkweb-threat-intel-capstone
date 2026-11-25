@@ -4,10 +4,76 @@ All notable changes, newest first. Dates are when the change was made. The proje
 
 | Version | Date | In one line |
 | --- | --- | --- |
+| [0.4.0](#040---2026-11-25) | 2026-11-25 | Redesign ("Field notes"), sign-in first, alerts written as sentences, My alerts feed, Connectors, readable Connections map |
 | [0.3.0](#030---2026-11-23) | 2026-11-23 | Accounts and private workspaces, email digest, webhook and API keys, MISP and TAXII, GitHub advisories, indicator lookups, CodeQL, threat model |
 | [0.2.1](#021---2026-11-17) | 2026-11-17 | Trained and tested on real data, keyless sources, edge-case hardening |
 | [0.2.0](#020---2026-11-16) | 2026-11-16 | React website, live data, Postgres, feedback, exports, notifications, CI |
 | [0.1.0](#010---2026-11-15) | 2026-11-15 | Core engine: rules, classifier, scoring, indicators, graph, API, evidence packs |
+
+## [0.4.0] - 2026-11-25
+
+A redesign around one idea: you say what you care about, and DarkLens tells you when it shows up. Before this version the
+Alerts page showed everything collected, unfiltered, and making it about you meant typing domains into a watchlist form.
+
+### Added
+- **Alerts written as sentences.** On the new **Set alerts** page you type something like "alert me for any PHP to shell
+  vulnerability in WordPress" or "ransomware attacks on hospitals, critical only". A local, rule-based parser
+  (`darklens/alert_rules.py`, no AI service, works offline) turns it into editable chips: software or vendor, other words,
+  kind of attack (13, from remote code execution to SQL injection), threat type, CVEs, domains, emails and the lowest
+  severity. You see the chips and a plain sentence ("Alert on remote code execution about wordpress or php, rated Medium or
+  worse.") before saving, and can remove or add any of them. Every kept group must match, so "PHP RCE in WordPress" needs
+  WordPress or PHP **and** a code-execution phrase. Software named in a rule also counts as "you run this" when scoring.
+  Up to 20 rules per workspace. API: `POST /api/rules/parse` (no sign-in, stores nothing), `GET /api/rules/vocabulary`,
+  `POST /api/workspace/rules`, `DELETE /api/workspace/rules/{id}`.
+- **My alerts**, the signed-in home page: only items that match your rules or watchlist, most serious first, each with
+  **why it is here** ("You asked: ..." and the words found) and a **link to the original report**. Filter by severity or by
+  which alert matched. Empty, with a call to action, until you set an alert. A "Where we look" panel lists the sources and
+  their status.
+- **Connectors** page with separate **Slack, Discord and Microsoft Teams** connectors (each with setup steps, its own
+  minimum severity, a test message and disconnect) and the **email digest**. Addresses must belong to the service
+  (hooks.slack.com, discord.com/api/webhooks, webhook.office.com / logic.azure.com / powerplatform.com), are checked to be
+  public https addresses, and are shown masked. Messages go out most serious first, once per connector, and say why the
+  alert matched and where to read the original. API: `PUT|PATCH|DELETE /api/workspace/connectors/{kind}` and
+  `POST /api/workspace/connectors/{kind}/test`.
+- **Landing page**: what DarkLens is in a few lines, a live example alert, an animated pipeline diagram (sources to your
+  alerts, with amber dots travelling along the wires), a typewriter demo that runs real sentences through the real parser,
+  and sign-up at the bottom.
+- **Intro loader**: an ink eye that draws itself, opens, looks left and right and blinks (about two seconds, once per
+  browser session, skippable with Esc).
+- Every alert row and report now has an **Original report** link to the source's own page.
+
+### Changed
+- **New look ("Field notes")**: warm paper, ink, serif headlines (Fraunces, bundled), signal amber used as a highlighter
+  rather than text, and a severity scale of its own so amber never reads as "critical". Calm in the app; motion only on the
+  landing page (drifting specks that lean away from the cursor) plus a small amber ripple on taps. New logo.
+- **Sign-in first.** Signed out, the menu is Live feed, Connections and Check a post, plus Sign in. Signed in it is My
+  alerts, Set alerts, Connections, Live feed, Connectors, Check a post, and an avatar for the Workspace. A sign-in link now
+  lands on My alerts.
+- **Alerts is now "Live feed"** and says plainly that it is everything collected, not filtered to you.
+- **Connections** no longer draws every alert and every clue (a hairball of hundreds of dots). It shows only groups of two or
+  more alerts that share a clue (wallet, email, address, file, poster), each laid out on its own and labelled, most serious
+  first; labels appear on hover; drag to pan, Ctrl + scroll or buttons to zoom, click a group to zoom to it, and "Around my
+  alerts" versus "Everything" when signed in.
+- **Workspace** is now the account page: profile, counts, API keys with a ready-to-copy curl and Python example, sign out,
+  delete account. Watchlist entries moved to Set alerts as "Exact matches", in the same card as the rules (the two empty
+  boxes that used to repeat each other are gone).
+- `GET /api/workspace/alerts` returns rule matches as well as watchlist matches, sorted by severity then score, with new
+  fields `rules` (id, prompt, matched words) and `watch_hits`. `GET /api/me` includes `rules`, `connectors` and
+  `limits.rules`.
+- Reduced motion: page-wide movement (hovers, drifting specks) stops; the intro eye, the pipeline dots (slower) and the tap
+  ripple stay, since they are small and never move the page.
+
+### Removed
+- The **How it works** and **Get started** pages (their essentials are on the landing page) and the **public shared
+  Watchlist** page, which anyone could read and edit. Old links (`#/learn`, `#/start`, `#/watchlist`) still open something
+  sensible. The public `/api/watchlist` endpoints are unchanged for compatibility.
+
+### Notes for whoever hosts it
+- No new environment variables. Two new tables (`ws_rules`, `ws_connectors`) are created automatically on start, on SQLite
+  and Postgres.
+- Sign-in still needs email (`BREVO_API_KEY` or `SMTP_*`, and `PUBLIC_APP_URL`) in production; locally `AUTH_DEV_LINKS=1`
+  shows the link on the page. See `docs/deployment.md`.
+- 38 new backend tests (`tests/test_alert_rules.py`) and 6 new frontend tests (`frontend/src/redesign.test.ts`).
 
 ## [0.3.0] - 2026-11-23
 

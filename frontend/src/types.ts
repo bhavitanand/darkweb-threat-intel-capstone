@@ -155,6 +155,48 @@ export interface ApiKeyRecord {
   last_used: string;
 }
 
+export interface RuleSpec {
+  products: string[];
+  keywords: string[];
+  attacks: string[];
+  categories: string[];
+  cves: string[];
+  domains: string[];
+  emails: string[];
+  min_severity: Severity;
+}
+
+export interface AlertRule {
+  id: string;
+  prompt: string;
+  spec: RuleSpec;
+  summary: string;
+  labels: { attacks: string[]; categories: string[] };
+  created_at: string;
+}
+
+export interface ParsedRule {
+  spec: RuleSpec;
+  summary: string;
+  empty: boolean;
+}
+
+export interface RuleVocabulary {
+  attacks: Record<string, string>;
+  categories: Record<string, string>;
+  severities: Severity[];
+}
+
+export type ConnectorKind = 'slack' | 'discord' | 'teams';
+
+export interface Connector {
+  kind: ConnectorKind;
+  /** Masked: only the start and end of the address are returned. */
+  url: string;
+  min_severity: Severity;
+  created_at: string;
+}
+
 export interface WorkspaceView {
   id: string;
   name: string;
@@ -164,7 +206,9 @@ export interface WorkspaceView {
   entries: WatchEntry[];
   api_keys: ApiKeyRecord[];
   email_ready: boolean;
-  limits: { entries: number; api_keys: number };
+  rules: AlertRule[];
+  connectors: Connector[];
+  limits: { entries: number; api_keys: number; rules: number };
 }
 
 export interface MeResponse {
@@ -187,5 +231,9 @@ export interface WorkspaceAlert {
   restricted: boolean;
   text: string;
   matched: string[];
+  /** Watchlist entries this item mentions. */
+  watch_hits?: string[];
+  /** Alert rules this item matches, with the words that matched. */
+  rules?: { id: string; prompt: string; evidence: string[] }[];
   reasons: { name: string; why: string }[];
 }

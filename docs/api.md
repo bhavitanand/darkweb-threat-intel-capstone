@@ -45,11 +45,28 @@ Send the session as `Authorization: Bearer <token>`, or an API key as `X-API-Key
 | `POST /api/auth/request` `{email}` | Emails a one-time link (15 minutes). The answer is the same for any address. `dev_link` is returned only when `AUTH_DEV_LINKS=1` |
 | `POST /api/auth/verify` `{token}` | Spends the link and returns `{token, email}` |
 | `POST /api/auth/logout`, `GET /api/me`, `DELETE /api/account` | End the session, read the account and workspace, delete everything |
-| `GET /api/workspace/alerts` | Alerts about only your entries, scored against only your list |
+| `GET /api/workspace/alerts` | Items that match your alert rules or watchlist, most serious first. Each has `rules` (which of your alerts matched, and the words found), `watch_hits`, `reasons` and the source `url` |
 | `POST /api/workspace/watch`, `DELETE /api/workspace/watch?kind=&value=` | Your private entries (up to 50) |
 | `PUT /api/workspace/settings` | `digest` (off, daily, weekly), `webhook_url` (https, public host), `notify_min` |
 | `GET /api/workspace/digest/preview`, `POST /api/workspace/digest/send`, `POST /api/workspace/webhook/test` | Try the digest and the webhook |
 | `POST /api/workspace/keys`, `DELETE /api/workspace/keys/{id}` | Create (the key is shown once) and revoke API keys (up to 5) |
+| `POST /api/workspace/rules` `{prompt, spec?}` | Save an alert rule (up to 20). Without `spec` the prompt is parsed on the server; with it, the edited spec is cleaned and saved |
+| `DELETE /api/workspace/rules/{id}` | Delete one of your alert rules |
+| `PUT /api/workspace/connectors/{slack\|discord\|teams}` `{url, min_severity}` | Connect a chat channel. The address must belong to that service and be a public https address. Shown masked afterwards |
+| `PATCH /api/workspace/connectors/{kind}` `{min_severity}`, `DELETE /api/workspace/connectors/{kind}` | Change its level, or disconnect |
+| `POST /api/workspace/connectors/{kind}/test` | Send a test message |
+
+## Alert rules written as sentences (no sign-in needed)
+
+| Endpoint | What it does |
+| --- | --- |
+| `POST /api/rules/parse` `{prompt}` | What a sentence would become as a rule: `{spec, summary, empty}`. Stores nothing |
+| `GET /api/rules/vocabulary` | The attack kinds, threat types and severities the parser knows |
+
+A rule spec is `{products, keywords, attacks, categories, cves, domains, emails, min_severity}`. Every non-empty group must
+match an item: (CVEs, domains or emails) and (products or keywords) and attacks and categories, at or above
+`min_severity`. Example: `"any PHP to shell vulnerability in WordPress"` becomes
+`{"products": ["wordpress", "php"], "attacks": ["rce"], "min_severity": "medium"}`.
 
 ## Errors
 

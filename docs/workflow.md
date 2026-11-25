@@ -33,7 +33,7 @@ flowchart LR
 2. **Extract clues.** Wallet addresses (checksum-validated), IP addresses, file hashes, domains, emails and CVE numbers are pulled out of the text. Fake or private values are dropped.
 3. **Look for warning signs.** About 24 hand-written rules (for example "countdown to publication", "database offered for sale") and a text classifier each contribute signals. A signal carries a strength from 0 to 100 and a one-line reason in plain words.
 4. **Add what the source knows.** An item that comes from a ransomware leak-site tracker is treated as a ransomware claim, because the source says so.
-5. **Add what you told us.** If an item mentions a domain or email on your watchlist, or contains logins for your domains, that is the strongest signal of all.
+5. **Add what you told us.** If an item mentions a domain or email on your watchlist, contains logins for your domains, or is an attack on software you named (in a rule or the watchlist), that is the strongest signal of all. Your alert rules then decide which items reach your feed and your connectors (see [alerts and notifications](alerts-and-notifications.md)).
 6. **Combine into a score.** Signals are merged with a "noisy-OR": weak signs add up, a strong one dominates, and the result never exceeds 100. Generic signals are discounted so that only converging evidence reaches Critical. Severity bands: 0-39 Low, 40-64 Medium, 65-84 High, 85-100 Critical.
 7. **Store.** Passwords are masked before anything is written, so plaintext passwords are never kept.
 8. **Tell people.** If a notification channel is configured, a message goes out for alerts about your watchlist (or Critical/High, if you choose). See [alerts and notifications](alerts-and-notifications.md).
@@ -42,15 +42,15 @@ flowchart LR
 
 | Step | Where | What |
 | --- | --- | --- |
-| 1 | **Watchlist** | Add your company's domains and the emails you care about. Everything stored is re-scored immediately. **The watchlist is shared by every visitor of the site** (there are no accounts yet), so only add what you are happy to be public, or run your own copy. |
-| 2 | **Alerts** | Work from the top: Critical, then High. Filter by type, by real or demo data, or search. |
-| 3 | **An alert's report** | Read the reasons, the clues found, and the attack techniques. Open the evidence pack if you need a record to share. |
-| 4 | **Decide** | Critical: act now. High: review within a day. Medium: keep an eye on it. Low: nothing to do. |
-| 5 | **"Is this right?"** | Say whether the type DarkLens chose is correct. This is how accuracy on real data is measured. |
-| 6 | **Connections** | See which alerts share wallets or addresses, and which poster names may be one person. |
-| 7 | **Export** | Download alerts as CSV, or as STIX 2.1 for other security tools. |
-
-The same guide is on the website under **Get started**.
+| 1 | **Landing page** | Read what DarkLens is, then make a workspace at the bottom: one email, no password. |
+| 2 | **Set alerts** | Write what you want to hear about in one sentence, such as "any PHP to shell vulnerability in WordPress". Check the chips DarkLens understood, remove or add any, and save. Add exact domains, emails or software under "Exact matches" if you prefer. |
+| 3 | **My alerts** | Your own feed: only what matches, most serious first, each with why it matched and a link to the original report. Filter by severity or by which alert matched. |
+| 4 | **An alert's report** | Read the reasons, the clues found, and the attack techniques. Open the evidence pack if you need a record to share. |
+| 5 | **Decide** | Critical: act now. High: review within a day. Medium: keep an eye on it. Low: nothing to do. |
+| 6 | **Connectors** | Get matches in Slack, Discord or Teams, or as an email digest, each with its own minimum severity. |
+| 7 | **Connections** | See groups of alerts that share a wallet, address, file or poster, around your alerts or across everything. |
+| 8 | **Live feed** | Everything collected, unfiltered, with filters and CSV or STIX export. |
+| 9 | **"Is this right?"** | On a report, say whether the type DarkLens chose is correct. This is how accuracy on real data is measured. |
 
 ## The data you will see
 

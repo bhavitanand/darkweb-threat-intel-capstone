@@ -11,7 +11,7 @@ import os
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import accounts, mailer, workspace
+from .. import accounts, alert_rules, mailer, workspace
 
 log = logging.getLogger("darklens.account")
 
@@ -39,6 +39,24 @@ class KeyIn(BaseModel):
     label: str = Field(default="", max_length=80)
 
 
+class PromptIn(BaseModel):
+    prompt: str = Field(default="", max_length=alert_rules.MAX_PROMPT)
+
+
+class RuleIn(BaseModel):
+    prompt: str = Field(default="", max_length=alert_rules.MAX_PROMPT)
+    spec: dict | None = None
+
+
+class ConnectorIn(BaseModel):
+    url: str = Field(default="", max_length=500)
+    min_severity: str = Field(default="high", max_length=10)
+
+
+class LevelIn(BaseModel):
+    min_severity: str = Field(max_length=10)
+
+
 def build_router(con, lock) -> APIRouter:
     """`con` returns the store connection; `lock` serialises writes (the same lock the rest of the API uses)."""
     r = APIRouter()
@@ -59,7 +77,13 @@ def build_router(con, lock) -> APIRouter:
         return {"id": ws["id"], "name": ws["name"], "digest": ws["digest"] or "off", "notify_min": ws["notify_min"] or "high",
                 "webhook_url": ws["webhook_url"] or "", "entries": accounts.watch_list(c, ws["id"]),
                 "api_keys": accounts.api_keys(c, ws["id"]), "email_ready": mailer.configured(),
-                "limits": {"entries": accounts.WORKSPACE_WATCH_MAX, "api_keys": accounts.MAX_API_KEYS}}
+                "rules": [alert_rules.view(r) for r in alert_rules.list_rules(c, ws["id"])],
+                "connectors": [{**k, "url": _mask(k["url"])} for k in accounts.connectors(c, ws["id"])],
+                "limits": {"entries": accounts.WORKSPACE_WATCH_MAX, "api_keys": accounts.MAX_API_KEYS, "rules": alert_rules.MAX_RULES}}
+
+    def _mask(url: str) -> str:
+        """A webhook address is a secret (anyone with it can post to your channel): show only its start and end."""
+        return url if len(url) < 40 else f"{url[:32]}...{url[-4:]}"
 
     @r.post("/api/auth/request")
     def request_link(body: EmailIn):
@@ -198,6 +222,74 @@ def build_router(con, lock) -> APIRouter:
             raise HTTPException(400, "Add a webhook address first.")
         try:
             workspace.post_webhook(ws["webhook_url"], "DarkLens test message: your alert webhook works.")
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, f"The test message could not be delivered ({type(e).__name__}).") from e
+        return {"ok": True}
+
+    # ---------------- alert rules written as a sentence ----------------
+
+    @r.get("/api/rules/vocabulary")
+    def rule_vocabulary():
+        """The kinds of attack, threat types and severities the alert-rule parser knows."""
+        return alert_rules.vocabulary()
+
+    @r.post("/api/rules/parse")
+    def rule_parse(body: PromptIn):
+        """What a sentence would become as an alert rule, without saving anything. No sign-in needed (it stores nothing)."""
+        spec = alert_rules.parse_prompt(body.prompt)
+        return {"spec": spec, "summary": alert_rules.describe(spec), "empty": alert_rules.is_empty(spec)}
+
+    @r.post("/api/workspace/rules")
+    def rule_add(body: RuleIn, authorization: str | None = Header(default=None)):
+        _, ws = current(authorization)
+        with lock:
+            got = alert_rules.add_rule(con(), ws["id"], body.prompt, body.spec)
+        if isinstance(got, str):
+            raise HTTPException(400, got)
+        return view(accounts.workspace_by_id(con(), ws["id"]))
+
+    @r.delete("/api/workspace/rules/{rule_id}")
+    def rule_remove(rule_id: str, authorization: str | None = Header(default=None)):
+        _, ws = current(authorization)
+        with lock:
+            alert_rules.remove_rule(con(), ws["id"], rule_id[:40])
+        return view(accounts.workspace_by_id(con(), ws["id"]))
+
+    # ---------------- connectors: Slack, Discord, Teams ----------------
+
+    @r.put("/api/workspace/connectors/{kind}")
+    def connector_set(kind: str, body: ConnectorIn, authorization: str | None = Header(default=None)):
+        _, ws = current(authorization)
+        with lock:
+            why = accounts.set_connector(con(), ws["id"], kind, body.url, body.min_severity)
+        if why:
+            raise HTTPException(400, why)
+        return view(accounts.workspace_by_id(con(), ws["id"]))
+
+    @r.patch("/api/workspace/connectors/{kind}")
+    def connector_level(kind: str, body: LevelIn, authorization: str | None = Header(default=None)):
+        _, ws = current(authorization)
+        with lock:
+            why = accounts.set_connector_level(con(), ws["id"], kind, body.min_severity)
+        if why:
+            raise HTTPException(400, why)
+        return view(accounts.workspace_by_id(con(), ws["id"]))
+
+    @r.delete("/api/workspace/connectors/{kind}")
+    def connector_remove(kind: str, authorization: str | None = Header(default=None)):
+        _, ws = current(authorization)
+        with lock:
+            accounts.remove_connector(con(), ws["id"], kind)
+        return view(accounts.workspace_by_id(con(), ws["id"]))
+
+    @r.post("/api/workspace/connectors/{kind}/test")
+    def connector_test(kind: str, authorization: str | None = Header(default=None)):
+        _, ws = current(authorization)
+        found = [c for c in accounts.connectors(con(), ws["id"]) if c["kind"] == kind]
+        if not found:
+            raise HTTPException(400, "Connect it first.")
+        try:
+            workspace.post_webhook(found[0]["url"], "DarkLens test message: alerts about what you watch will arrive here.", kind)
         except Exception as e:  # noqa: BLE001
             raise HTTPException(400, f"The test message could not be delivered ({type(e).__name__}).") from e
         return {"ok": True}

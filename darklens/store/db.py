@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS api_keys (
 CREATE TABLE IF NOT EXISTS ws_notified (
   workspace_id TEXT, item_id TEXT, channel TEXT, created_at TEXT, PRIMARY KEY (workspace_id, item_id, channel)
 );
+CREATE TABLE IF NOT EXISTS ws_rules (
+  id TEXT PRIMARY KEY, workspace_id TEXT, prompt TEXT, spec TEXT, created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_rules_ws ON ws_rules(workspace_id);
+CREATE TABLE IF NOT EXISTS ws_connectors (
+  workspace_id TEXT, kind TEXT, url TEXT, min_severity TEXT, created_at TEXT, PRIMARY KEY (workspace_id, kind)
+);
 """
 
 

@@ -20,6 +20,9 @@ from collections import deque
 MAX_CLIENTS = 20000
 
 
+# POST only because the body is text; they change nothing, so they count against the read budget.
+READ_LIKE_POSTS = frozenset({"/api/rules/parse"})
+
 class RateLimitMiddleware:
     def __init__(self, app, read_per_min: int = 120, write_per_min: int = 20, trust_proxy: bool = False, clock=time.monotonic):
         self.app = app
@@ -57,6 +60,8 @@ class RateLimitMiddleware:
         if scope["type"] != "http" or not path.startswith("/api/") or path == "/api/health" or scope["method"] == "OPTIONS":
             return await self.app(scope, receive, send)
         kind = "write" if scope["method"] in ("POST", "PUT", "PATCH", "DELETE") else "read"
+        if path in READ_LIKE_POSTS:
+            kind = "read"  # stores nothing; the website calls it while you type, so it must not use up the write budget
         limit = self.limits[kind]
         if limit > 0:
             wait = self._allow((self._client(scope), kind), limit)
