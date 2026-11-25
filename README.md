@@ -36,7 +36,7 @@ The landing page explains DarkLens in a few lines; sign up at the bottom with on
 
 Alerts marked **Demo** are made up so the tool is never empty. The full walkthrough, with the data flow, is in [docs/workflow.md](docs/workflow.md).
 
-## Run it yourself in 60 seconds (no accounts, no keys)
+## Run it yourself in 60 seconds (no accounts and no keys)
 
 ```bash
 pip install -r requirements.txt
