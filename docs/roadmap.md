@@ -10,6 +10,7 @@ Honest status of what exists, what comes next, and what depends on people rather
 | 0.2.0 | 2026-11-16 | Website, live data, feedback, exports, CI |
 | 0.2.1 | 2026-11-17 | Real-data training and testing, wider net, hardening |
 | 0.3.0 | 2026-11-23 | Accounts, workspaces, standards, more sources, observability |
+| 0.4.0 | 2026-11-25 | Redesign, sign-in first, alerts written as sentences, My alerts, Connectors, readable Connections |
 | 1.0.0 | not scheduled | See "What 1.0 means" below |
 
 Full detail for each is in the [changelog](../CHANGELOG.md).

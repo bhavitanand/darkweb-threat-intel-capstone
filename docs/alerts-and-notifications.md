@@ -60,6 +60,34 @@ python -m darklens notify-test
 | Reviewer feedback as CSV | `GET /api/export/feedback.csv` | Labelled data for measuring accuracy. |
 | Evidence pack | Alert report, "Open evidence pack" | A sealed, self-contained page for one alert, to share or keep. |
 
+## Per-person alerts (v0.4: alert rules and connectors)
+
+**Set alerts.** A signed-in person writes what they want in one sentence ("ransomware attacks on hospitals, critical only").
+The parser in `darklens/alert_rules.py` turns it into chips they can edit before saving. My alerts then lists every stored
+item that matches any of their rules or exact-match entries, worst first, saying why each one matched and linking to the
+original report.
+
+**Connectors.** Slack, Discord and Microsoft Teams each have their own connector with its own minimum severity:
+
+| Service | Where to get the address | Accepted hosts |
+| --- | --- | --- |
+| Slack | Apps, Incoming WebHooks, pick a channel | `hooks.slack.com/services/...` |
+| Discord | Channel settings, Integrations, Webhooks | `discord.com/api/webhooks/...` |
+| Microsoft Teams | Channel, Workflows, "Post to a channel when a webhook request is received" | `*.webhook.office.com`, `*.logic.azure.com`, `*.powerplatform.com` |
+
+After each collection run, every connector gets the new matches at or above its level, **most serious first**, at most 10
+per run plus one summary line, each alert once per connector. A message reads:
+
+```
+DarkLens CRITICAL 94/100: CVE-2026-109619: PHP Group PHP
+An attack or breach is reported involving php, which you said you run.
+You asked: "alert me for any php2shell vulnerability in wordpress"
+Read the original report: https://...
+```
+
+Slack and Teams get `{"text": ...}`, Discord gets `{"content": ...}`. Teams Workflows that expect an Adaptive Card need a
+"Compose" step in the workflow; the classic incoming webhook reads `text` directly.
+
 ## Per-person alerts (v0.3)
 
 Signed-in users set their own digest (daily or weekly, sent only when something is new), webhook and minimum level under Workspace. These use the same de-duplication and caps as the shared notifications and only ever contain items that match that person's private watchlist. The email sender is Brevo (`BREVO_API_KEY` and `MAIL_FROM`) or SMTP.

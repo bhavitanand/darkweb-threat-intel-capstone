@@ -1,3 +1,3 @@
 """DarkLens: multi-layered dark web analysis, credential breach detection and proactive threat intelligence."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

@@ -135,7 +135,7 @@ def delete_account(con, user_id: str) -> None:
     ws = [r["id"] for r in con.execute("SELECT id FROM workspaces WHERE owner_id=?", (user_id,))]
     email = (con.execute("SELECT email FROM users WHERE id=?", (user_id,)).fetchone() or {"email": None})["email"]
     for w in ws:
-        for table in ("ws_watch", "api_keys", "ws_notified"):
+        for table in ("ws_watch", "api_keys", "ws_notified", "ws_rules", "ws_connectors"):
             con.execute(f"DELETE FROM {table} WHERE workspace_id=?", (w,))
         con.execute("DELETE FROM workspaces WHERE id=?", (w,))
     con.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
@@ -293,3 +293,62 @@ def workspace_for_api_key(con, key: str | None) -> dict | None:
     con.execute("UPDATE api_keys SET last_used=? WHERE id=?", (_iso(_now()), row["id"]))
     con.commit()
     return workspace_by_id(con, row["workspace_id"])
+
+
+# ---------------- connectors (Slack, Discord, Teams) ----------------
+
+CONNECTOR_KINDS = ("slack", "discord", "teams")
+
+
+def check_connector_url(kind: str, url: str) -> str | None:
+    """None when the address is a safe, public https address of the right service; otherwise why not."""
+    if kind not in CONNECTOR_KINDS:
+        return "kind must be slack, discord or teams"
+    why = check_webhook_url(url)
+    if why:
+        return why
+    parts = urlsplit(url)
+    host, path = (parts.hostname or "").lower(), parts.path or ""
+    if kind == "slack" and not (host == "hooks.slack.com" and path.startswith("/services/")):
+        return "A Slack webhook starts with https://hooks.slack.com/services/."
+    if kind == "discord" and not (host in ("discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com")
+                                  and path.startswith("/api/webhooks/")):
+        return "A Discord webhook starts with https://discord.com/api/webhooks/."
+    if kind == "teams" and not (host.endswith(".webhook.office.com") or host.endswith(".logic.azure.com")
+                                or host.endswith(".powerplatform.com")):
+        return "A Teams webhook is a webhook.office.com, logic.azure.com or powerplatform.com address."
+    return None
+
+
+def connectors(con, wid: str) -> list[dict]:
+    return [{"kind": r["kind"], "url": r["url"], "min_severity": r["min_severity"] or "high", "created_at": r["created_at"]}
+            for r in con.execute("SELECT kind, url, min_severity, created_at FROM ws_connectors WHERE workspace_id=? ORDER BY kind", (wid,))]
+
+
+def set_connector(con, wid: str, kind: str, url: str, min_severity: str = "high") -> str | None:
+    """Add or replace one connector. None on success, otherwise the reason it was refused."""
+    kind = (kind or "").strip().lower()
+    url = (url or "").strip()
+    if min_severity not in NOTIFY_CHOICES:
+        return "min_severity must be low, medium, high or critical"
+    why = check_connector_url(kind, url)
+    if why:
+        return why
+    con.execute("DELETE FROM ws_connectors WHERE workspace_id=? AND kind=?", (wid, kind))
+    con.execute("INSERT INTO ws_connectors (workspace_id, kind, url, min_severity, created_at) VALUES (?,?,?,?,?)",
+                (wid, kind, url, min_severity, _iso(_now())))
+    con.commit()
+    return None
+
+
+def set_connector_level(con, wid: str, kind: str, min_severity: str) -> str | None:
+    if min_severity not in NOTIFY_CHOICES:
+        return "min_severity must be low, medium, high or critical"
+    con.execute("UPDATE ws_connectors SET min_severity=? WHERE workspace_id=? AND kind=?", (min_severity, wid, kind))
+    con.commit()
+    return None
+
+
+def remove_connector(con, wid: str, kind: str) -> None:
+    con.execute("DELETE FROM ws_connectors WHERE workspace_id=? AND kind=?", (wid, (kind or "").strip().lower()))
+    con.commit()

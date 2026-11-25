@@ -6,6 +6,8 @@ import { useAsync } from '../hooks';
 import { CATEGORY_META, SEVERITY_META, SEVERITY_ORDER, categoryLabel } from '../lib';
 import { AlertRow } from '../components/AlertRow';
 import SourceCredit from '../components/SourceCredit';
+import DataStatus from '../components/DataStatus';
+import { useToken } from '../auth';
 import { Empty, ErrorBox, Loading, PageHead } from '../components/ui';
 
 const PAGE_SIZE = 100;
@@ -22,6 +24,7 @@ function useDebounced<T>(value: T, ms = 300): T {
 
 export default function Alerts() {
   const stats = useAsync(api.stats);
+  const signedIn = Boolean(useToken());
   const [severity, setSeverity] = useState('');
   const [category, setCategory] = useState('');
   const [q, setQ] = useState('');
@@ -79,8 +82,8 @@ export default function Alerts() {
   return (
     <>
       <PageHead
-        title="Alerts"
-        sub="Every post DarkLens has looked at, most worrying first. Open one to see exactly why it got its score."
+        title="Live feed"
+        sub="Everything DarkLens has collected, from every source, most worrying first. This is not filtered to you: your own alerts are in My alerts."
         actions={
           <div className="row">
             <a className="btn btn-ghost" href={api.exportUrl('alerts.csv')} download><Download size={15} aria-hidden="true" /> Spreadsheet (CSV)</a>
@@ -88,10 +91,14 @@ export default function Alerts() {
           </div>
         }
       />
-      <p className="muted">
-        Exports contain demo data and sources that allow sharing. Ransomware.live does not allow its data to be re-published,
-        so its claims are left out of downloads.
-      </p>
+      {!signedIn && (
+        <div className="state state-warn" style={{ marginBottom: 18 }}>
+          <div>
+            <strong>Want only what is about you?</strong>
+            <p>Make a free workspace and write alerts like “ransomware attacks on hospitals”. <a href="#/workspace">Sign in</a></p>
+          </div>
+        </div>
+      )}
       <div className="filters">
         <div className="pills" role="group" aria-label="Filter by severity">
           <button className="pill" aria-pressed={severity === ''} onClick={() => setSeverity('')}>All</button>
@@ -148,12 +155,17 @@ export default function Alerts() {
                 </div>
               )}
               <SourceCredit alerts={page.rows} />
+              <p className="muted" style={{ fontSize: 12.5 }}>
+                Exports contain demo data and sources that allow sharing. Ransomware.live and news sites do not allow their text to
+                be re-published, so those items are left out of downloads.
+              </p>
             </>
           ) : (
             <Empty title="Nothing matches those filters">Clear a filter or try a different word.</Empty>
           )}
         </>
       )}
+      {stats.data && <div style={{ marginTop: 22 }}><DataStatus real={stats.data.real_alerts} demo={stats.data.demo_alerts} /></div>}
     </>
   );
 }

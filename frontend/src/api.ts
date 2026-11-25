@@ -1,7 +1,7 @@
 import { getToken } from './auth';
 import type {
-  Alert, AlertDetail, Analysis, ApiKeyRecord, EvalResult, FeedbackCounts, GraphData, IngestStatus, MeResponse, Stats, WatchEntry,
-  WorkspaceAlert, WorkspaceView,
+  Alert, AlertDetail, Analysis, ApiKeyRecord, ConnectorKind, EvalResult, FeedbackCounts, GraphData, IngestStatus, MeResponse,
+  ParsedRule, RuleSpec, RuleVocabulary, Severity, Stats, WatchEntry, WorkspaceAlert, WorkspaceView,
 } from './types';
 
 // Dev: empty, so requests go to /api and Vite proxies them. Production: the deployed API origin.
@@ -145,6 +145,16 @@ export const api = {
   digestPreview: () => authed<{ count: number; subject: string; body: string }>('/api/workspace/digest/preview'),
   digestSend: () => authed<{ sent: boolean; count: number }>('/api/workspace/digest/send', { method: 'POST' }),
   webhookTest: () => authed<{ ok: boolean }>('/api/workspace/webhook/test', { method: 'POST' }),
+  ruleVocabulary: () => request<RuleVocabulary>('/api/rules/vocabulary'),
+  parseRule: (prompt: string) => post<ParsedRule>('/api/rules/parse', { prompt }),
+  addRule: (prompt: string, spec: RuleSpec) => authed<WorkspaceView>('/api/workspace/rules', jsonInit('POST', { prompt, spec })),
+  removeRule: (id: string) => authed<WorkspaceView>(`/api/workspace/rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  setConnector: (kind: ConnectorKind, url: string, min_severity: Severity) =>
+    authed<WorkspaceView>(`/api/workspace/connectors/${kind}`, jsonInit('PUT', { url, min_severity })),
+  setConnectorLevel: (kind: ConnectorKind, min_severity: Severity) =>
+    authed<WorkspaceView>(`/api/workspace/connectors/${kind}`, jsonInit('PATCH', { min_severity })),
+  removeConnector: (kind: ConnectorKind) => authed<WorkspaceView>(`/api/workspace/connectors/${kind}`, { method: 'DELETE' }),
+  testConnector: (kind: ConnectorKind) => authed<{ ok: boolean }>(`/api/workspace/connectors/${kind}/test`, { method: 'POST' }),
   exportUrl: (file: 'alerts.csv' | 'stix.json') => `${BASE}/api/export/${file}`,
   evidenceUrl: (id: string) => `${BASE}/api/alerts/${encodeURIComponent(id)}/evidence`,
 };
